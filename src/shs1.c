@@ -34,10 +34,10 @@ struct SHS1_Client {
   unsigned char eph_pub[crypto_box_PUBLICKEYBYTES]; // a_p
   unsigned char eph_sec[crypto_box_SECRETKEYBYTES]; // a_s
   unsigned char app_hmac[crypto_auth_BYTES]; // hmac_{K}(a_p)
-  unsigned char server_app_hmac[crypto_auth_BYTES]; // hmac_{K}(b_p) TODO only need to store 24 bytes? Or maybe simply recompute it at the end?
   unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
   unsigned char hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
+  unsigned char encryption_nonce[crypto_box_NONCEBYTES]; // first 24 bytes of hmac_{K}(b_p)
 };
 
 SHS1_Client *shs1_init_client(
@@ -87,7 +87,7 @@ bool shs1_verify_server_challenge(
     return false;
   } else {
     // hmac_{K}(b_p)
-    memcpy(client->server_app_hmac, challenge, crypto_auth_BYTES);
+    memcpy(client->server_app_hmac, challenge, crypto_box_NONCEBYTES);
     // b_p
     memcpy(client->server_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
     // (a_s * b_p)
@@ -130,7 +130,7 @@ int shs1_create_client_auth(
   );
 
   // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
-  memcpy(client->hello, sig, crypto_sign_BYTES);
+  memcpy(client->hello, sig, sizeof(sig));
   memcpy(client->hello + crypto_sign_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
 
   unsigned char nonce[crypto_secretbox_NONCEBYTES] = {0};
@@ -168,17 +168,12 @@ bool shs1_verify_server_auth(
     return false;
   } else {
     // K | H | hash(a_s * b_p)
-    // TODO can some of this be moved into SHS1_Client to prevent copying?
     unsigned char expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
     memcpy(expected, client->app, crypto_auth_KEYBYTES);
     memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES);
     memcpy(expected + crypto_auth_KEYBYTES + HELLO_BYTES, client->shared_hash, crypto_hash_sha256_BYTES);
 
-    return crypto_sign_verify_detached(
-      sig, expected,
-      crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES,
-      client->server_pub
-    ) == 0;
+    return crypto_sign_verify_detached(sig, expected, sizeof(expected), client->server_pub) == 0;
   }
 
   return false;
@@ -189,23 +184,17 @@ void shs1_client_outcome(
   const SHS1_Client *client
 )
 {
-  // hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p))
-  unsigned char why_is_this_hashed_again[crypto_hash_sha256_BYTES];
-  crypto_hash_sha256(why_is_this_hashed_again, client->box_sec, crypto_hash_sha256_BYTES);
-
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
   unsigned char tmp[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
-  memcpy(tmp, why_is_this_hashed_again, crypto_hash_sha256_BYTES);
+  crypto_hash_sha256(tmp, client->box_sec, crypto_hash_sha256_BYTES);
   memcpy(tmp + crypto_hash_sha256_BYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
   crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   memcpy(outcome->encryption_nonce, client->server_app_hmac, crypto_box_NONCEBYTES);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
-  unsigned char tmp2[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
-  memcpy(tmp2, why_is_this_hashed_again, crypto_hash_sha256_BYTES);
-  memcpy(tmp2 + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
-  crypto_hash_sha256(outcome->decryption_key, tmp2, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
+  memcpy(tmp + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
+  crypto_hash_sha256(outcome->decryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   memcpy(outcome->decryption_nonce, client->app_hmac, crypto_box_NONCEBYTES);
 }
