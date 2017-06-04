@@ -2,12 +2,23 @@
 #define SHS_H
 
 #include <stdbool.h>
+#include <sodium.h>
 
 #define SHS_CLIENT_CHALLENGE_BYTES 64
 #define SHS_SERVER_CHALLENGE_BYTES 64
 #define SHS_CLIENT_AUTH_BYTES 64
 #define SHS_SERVER_AUTH_BYTES 64
 
+// The data resulting from a handshake: Keys and nonces suitable for encrypted
+// two-way communication with the peer via sodium secretboxes.
+typedef struct {
+	unsigned char encryption_key[crypto_secretbox_KEYBYTES];
+  unsigned char encryption_nonce[crypto_secretbox_NONCEBYTES];
+  unsigned char decryption_key[crypto_secretbox_KEYBYTES];
+  unsigned char decryption_nonce[crypto_secretbox_NONCEBYTES];
+} SHS_Outcome;
+
+// Carries state during the handshake process.
 typedef struct SHS_Client SHS_Client;
 
 void shs_init_client(
@@ -65,14 +76,14 @@ void shs_create_client_auth(
 bool shs_verify_server_auth(
   const unsigned char *auth, //length SHS_SERVER_AUTH_BYTES
   SHS_Client *client
-)
+);
 
 // Copies the result of the handshake into `outcome`, then zeroes all
 // crypto-related data in `client`.
 //
 // Must have previously called `shs_verify_server_auth` on `client` to work
 // correctly.
-void shs_client_finish(Outcome *outcome, SHS_Client *client);
+void shs_client_finish(SHS_Outcome *outcome, SHS_Client *client);
 
 typedef struct SHS_Server SHS_Server;
 
@@ -122,7 +133,7 @@ void shs_legacy_create_server_challenge(
 bool shs_verify_client_auth(
   const unsigned char *auth, //length SHS_CLIENT_AUTH_BYTES
   SHS_Server *server
-)
+);
 
 // Writes the server authentication into `auth`.
 //
@@ -138,5 +149,5 @@ void shs_create_server_auth(
 //
 // Must have previously called `shs_create_server_auth` on `server` to work
 // correctly.
-void shs_server_finish(Outcome *outcome, SHS_Server *server);
+void shs_server_finish(SHS_Outcome *outcome, SHS_Server *server);
 #endif
