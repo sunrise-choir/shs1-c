@@ -6,9 +6,9 @@ CFLAGS=-I$(IDIR) -Werror -Wall -Wextra -std=c99 -pedantic
 
 ODIR=build
 
-DEPS = $(IDIR)/shs.h
+DEPS = $(IDIR)/shs1.h
 
-OBJ = $(ODIR)/shs.o $(ODIR)/test.o
+OBJ = $(ODIR)/shs1.o $(ODIR)/test.o
 
 $(ODIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

@@ -1,8 +1,8 @@
-#include "shs.h"
+#include "shs1.h"
 
 #include<stdio.h>
 
 int main()
 {
-    printf("Hello Wor ld");
+    printf("%d", crypto_generichash_BYTES);
 }
