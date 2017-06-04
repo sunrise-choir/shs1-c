@@ -1,8 +1,10 @@
-SRCDIR =src
+LDLIBS = -lsodium
+
+SRCDIR = src
 VPATH = $(SRCDIR)
 
-IDIR =$(SRCDIR)
-CFLAGS=-I$(IDIR) -Werror -Wall -Wextra -std=c99 -pedantic
+IDIR = $(SRCDIR)
+CFLAGS=-g -I $(IDIR) -Werror -Wall -Wextra -std=c99 -pedantic
 
 ODIR=build
 
@@ -14,7 +16,7 @@ $(ODIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 all: $(OBJ)
-	cc -o $@ $^ $(CFLAGS) $(LIBS)
+	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 

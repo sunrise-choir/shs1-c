@@ -21,11 +21,10 @@ typedef struct {
 // Carries state during the handshake process.
 typedef struct SHS1_Client SHS1_Client;
 
-void shs1_init_client(
-  SHS1_Client *client,
+SHS1_Client *shs1_init_client(
   const unsigned char *pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *sec, // length crypto_sign_SECRETKEYBYTES
-  const unsigned char *server, // length crypto_sign_PUBLICKEYBYTES
+  const unsigned char *server_pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *eph_pub, // length crypto_box_PUBLICKEYBYTES
   const unsigned char *eph_sec // length crypto_box_SECRETKEYBYTES
@@ -33,7 +32,7 @@ void shs1_init_client(
 
 // Writes the client challenge into `challenge`.
 //
-// Must have previously called `shs1_init_client` on `client` to work correctly.
+// `client` must have been freshly obtained via `shs1_init_client`.
 void shs1_create_client_challenge(
   unsigned char *challenge, // length SHS1_CLIENT_CHALLENGE_BYTES
   SHS1_Client *client
@@ -67,16 +66,16 @@ bool shs1_verify_server_auth(
 );
 
 // Copies the result of the handshake into `outcome`, then zeroes all
-// crypto-related data in `client`.
+// crypto-related data in `client` and deallocates it.
 //
 // Must have previously called `shs1_verify_server_auth` on `client` to work
 // correctly.
 void shs1_client_finish(SHS1_Outcome *outcome, SHS1_Client *client);
 
+// Carries state during the handshake process.
 typedef struct SHS1_Server SHS1_Server;
 
-void shs1_init_server(
-  SHS1_Server *server,
+SHS1_Server *shs1_init_server(
   const unsigned char *pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *sec, // length crypto_sign_SECRETKEYBYTES
   const unsigned char *app, // length crypto_auth_KEYBYTES
@@ -86,8 +85,7 @@ void shs1_init_server(
 
 // Returns true if the client challenge is valid.
 //
-// Must have previously called `shs1_init_server` on `server` to work
-// correctly.
+// `server` must have been freshly obtained via `shs1_init_server`.
 bool shs1_verify_client_challenge(
   const unsigned char *challenge, // length SHS1_CLIENT_CHALLENGE_BYTES
   SHS1_Server *server
@@ -121,7 +119,7 @@ void shs1_create_server_auth(
 );
 
 // Copies the result of the handshake into `outcome`, then zeroes all
-// crypto-related data in `server`.
+// crypto-related data in `server` and deallocates it.
 //
 // Must have previously called `shs1_create_server_auth` on `server` to work
 // correctly.
