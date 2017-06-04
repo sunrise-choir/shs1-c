@@ -25,9 +25,14 @@ int main()
     crypto_box_keypair(c_eph_pub, c_eph_sec);
     crypto_box_keypair(s_eph_pub, s_eph_sec);
 
+    unsigned char client_challenge[SHS1_CLIENT_CHALLENGE_BYTES];
+
     SHS1_Client *client = shs1_init_client(c_pub, c_sec, s_pub, app, c_eph_pub, c_eph_sec);
+    shs1_create_client_challenge(client_challenge, client);
 
     free(client);
 
-    // printf("%lu\n", sizeof client);
+    printf("%u\n", crypto_secretbox_MACBYTES);
+    printf("%u\n", crypto_sign_BYTES);
+    printf("%u\n", crypto_sign_PUBLICKEYBYTES);
 }

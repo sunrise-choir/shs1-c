@@ -6,8 +6,8 @@
 
 #define SHS1_CLIENT_CHALLENGE_BYTES 64
 #define SHS1_SERVER_CHALLENGE_BYTES 64
-#define SHS1_CLIENT_AUTH_BYTES 64
-#define SHS1_SERVER_AUTH_BYTES 64
+#define SHS1_CLIENT_AUTH_BYTES 112
+#define SHS1_SERVER_AUTH_BYTES 80
 
 // The data resulting from a handshake: Keys and nonces suitable for encrypted
 // two-way communication with the peer via sodium secretboxes.
@@ -47,11 +47,12 @@ bool shs1_verify_server_challenge(
   SHS1_Client *client
 );
 
-// Writes the client authentication into `auth`.
+// Writes the client authentication into `auth`. Returns nonzero if any of the
+// inner crypto operations fail (e.g. scalarmult).
 //
 // Must have previously called `shs1_verify_server_challenge` on `client` to
 // work correctly.
-void shs1_create_client_auth(
+int shs1_create_client_auth(
   unsigned char *auth, // length SHS1_CLIENT_AUTH_BYTES
   SHS1_Client *client
 );
@@ -65,12 +66,14 @@ bool shs1_verify_server_auth(
   SHS1_Client *client
 );
 
-// Copies the result of the handshake into `outcome`, then zeroes all
-// crypto-related data in `client` and deallocates it.
+// Copies the result of the handshake into `outcome`.
 //
 // Must have previously called `shs1_verify_server_auth` on `client` to work
 // correctly.
-void shs1_client_finish(SHS1_Outcome *outcome, SHS1_Client *client);
+void shs1_client_outcome(SHS1_Outcome *outcome, const SHS1_Client *client);
+
+// Zeros out all crypto data and frees `client`.
+void shs1_client_free(SHS1_Client *client);
 
 // Carries state during the handshake process.
 typedef struct SHS1_Server SHS1_Server;
@@ -118,10 +121,12 @@ void shs1_create_server_auth(
   SHS1_Server *server
 );
 
-// Copies the result of the handshake into `outcome`, then zeroes all
-// crypto-related data in `server` and deallocates it.
+// Copies the result of the handshake into `outcome`.
 //
 // Must have previously called `shs1_create_server_auth` on `server` to work
 // correctly.
-void shs1_server_finish(SHS1_Outcome *outcome, SHS1_Server *server);
+void shs1_server_outcome(SHS1_Outcome *outcome, const SHS1_Server *server);
+
+// Zeros out all crypto data and frees `server`.
+void shs1_server_free(SHS1_Server *client);
 #endif
