@@ -18,7 +18,10 @@ $(ODIR)/%.o: %.c $(DEPS)
 test: $(OBJ)
 	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
 
+example: src/example.c src/shs1.c
+	cc $(LDLIBS) -o example src/example.c src/shs1.c
+
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o test
+	rm -f $(ODIR)/*.o test example

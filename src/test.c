@@ -5,15 +5,6 @@
 #include <string.h>
 #include <sodium.h>
 
-void print_hex(void *mem, int size) {
-  int i;
-  unsigned char *p = (unsigned char *)mem;
-  for (i=0;i<size;i++) {
-    printf("0x%02x ", p[i]);
-  }
-  printf("\n");
-}
-
 int main()
 {
   // test data generated via https://gist.github.com/AljoschaMeyer/d8766ce2ee6bc8e1e20194567863f25c
@@ -72,8 +63,6 @@ int main()
   assert(shs1_verify_client_auth(client_auth, server));
 
   shs1_create_server_auth(server_auth, server);
-  // print_hex(server_auth, SHS1_SERVER_AUTH_BYTES);
-  // print_hex(expected_server_auth, SHS1_SERVER_AUTH_BYTES);
   assert(memcmp(server_auth, expected_server_auth, SHS1_SERVER_AUTH_BYTES) == 0);
 
   assert(shs1_verify_server_auth(server_auth, client));

@@ -2,13 +2,14 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <sodium.h>
 
 void print_hex(void *mem, int size) {
   int i;
   unsigned char *p = (unsigned char *)mem;
   for (i=0;i<size;i++) {
-    printf("0x%02x ", p[i]);
+    printf("%02x ", p[i]);
   }
   printf("\n");
 }
@@ -80,22 +81,22 @@ int main()
   shs1_server_outcome(&server_outcome, server);
 
   printf("%s\n", "");
-  printf("%s", "client: encryption key:");
+  printf("%s", "client: encryption key: ");
   print_hex(&(client_outcome.encryption_key), crypto_secretbox_KEYBYTES);
-  printf("%s", "client: encryption nonce:");
+  printf("%s", "client: encryption nonce: ");
   print_hex(&(client_outcome.encryption_nonce), crypto_secretbox_NONCEBYTES);
-  printf("%s", "client: decryption key:");
+  printf("%s", "client: decryption key: ");
   print_hex(&(client_outcome.decryption_key), crypto_secretbox_KEYBYTES);
-  printf("%s", "client: decryption nonce:");
+  printf("%s", "client: decryption nonce: ");
   print_hex(&(client_outcome.decryption_nonce), crypto_secretbox_NONCEBYTES);
   printf("%s\n", "");
-  printf("%s", "server: encryption key:");
+  printf("%s", "server: encryption key: ");
   print_hex(&(server_outcome.encryption_key), crypto_secretbox_KEYBYTES);
-  printf("%s", "server: encryption nonce:");
+  printf("%s", "server: encryption nonce: ");
   print_hex(&(server_outcome.encryption_nonce), crypto_secretbox_NONCEBYTES);
-  printf("%s", "server: decryption key:");
+  printf("%s", "server: decryption key: ");
   print_hex(&(server_outcome.decryption_key), crypto_secretbox_KEYBYTES);
-  printf("%s", "server: decryption nonce:");
+  printf("%s", "server: decryption nonce: ");
   print_hex(&(server_outcome.decryption_nonce), crypto_secretbox_NONCEBYTES);
 
   assert(memcmp(&(client_outcome.encryption_key), &(server_outcome.decryption_key), crypto_secretbox_KEYBYTES) == 0);
