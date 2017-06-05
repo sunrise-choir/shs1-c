@@ -5,14 +5,7 @@
 
 #define HELLO_BYTES crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES
 
-void print_hexx(void *mem, int size) {
-  int i;
-  unsigned char *p = (unsigned char *)mem;
-  for (i=0;i<size;i++) {
-    printf("%02x ", p[i]);
-  }
-  printf("\n");
-}
+static unsigned char zero_nonce[crypto_box_NONCEBYTES] = {0};
 
 // The order of fields is relevant from `app` to `shared_hash`.
 struct SHS1_Client {
@@ -83,20 +76,20 @@ bool shs1_verify_server_challenge(
         crypto_box_PUBLICKEYBYTES, client->app
       ) != 0) {
     return false;
-  } else {
-    // hmac_{K}(b_p)
-    memcpy(client->encryption_nonce, challenge, crypto_box_NONCEBYTES);
-    // b_p
-    memcpy(client->server_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
-    // (a_s * b_p)
-    if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
-      return false;
-    };
-    // hash(a_s * b_p)
-    crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
-
-    return true;
   }
+
+  // hmac_{K}(b_p)
+  memcpy(client->encryption_nonce, challenge, crypto_box_NONCEBYTES);
+  // b_p
+  memcpy(client->server_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
+  // (a_s * b_p)
+  if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
+    return false;
+  };
+  // hash(a_s * b_p)
+  crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
+
+  return true;
 }
 
 // auth <- secretbox_{hash(K | a_s * b_p | a_s * B_p)}(H)
@@ -131,11 +124,9 @@ int shs1_create_client_auth(
   memcpy(client->hello, sig, sizeof(sig));
   memcpy(client->hello + crypto_sign_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
 
-  unsigned char nonce[crypto_secretbox_NONCEBYTES] = {0};
-
   crypto_secretbox_easy(
     auth, client->hello, HELLO_BYTES,
-    nonce, box_sec
+    zero_nonce, box_sec
   );
 
   return 0;
@@ -159,22 +150,18 @@ bool shs1_verify_server_auth(
   // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
   crypto_hash_sha256(client->box_sec, client->app, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
 
-  unsigned char nonce[crypto_secretbox_NONCEBYTES] = {0};
-
   unsigned char sig[crypto_sign_BYTES];
-  if (crypto_secretbox_open_easy(sig, auth, SHS1_SERVER_AUTH_BYTES, nonce, client->box_sec) != 0) {
+  if (crypto_secretbox_open_easy(sig, auth, SHS1_SERVER_AUTH_BYTES, zero_nonce, client->box_sec) != 0) {
     return false;
-  } else {
-    // K | H | hash(a_s * b_p)
-    unsigned char expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
-    memcpy(expected, client->app, crypto_auth_KEYBYTES);
-    memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES);
-    memcpy(expected + crypto_auth_KEYBYTES + HELLO_BYTES, client->shared_hash, crypto_hash_sha256_BYTES);
-
-    return crypto_sign_verify_detached(sig, expected, sizeof(expected), client->server_pub) == 0;
   }
 
-  return false;
+  // K | H | hash(a_s * b_p)
+  unsigned char expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
+  memcpy(expected, client->app, crypto_auth_KEYBYTES);
+  memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES);
+  memcpy(expected + crypto_auth_KEYBYTES + HELLO_BYTES, client->shared_hash, crypto_hash_sha256_BYTES);
+
+  return crypto_sign_verify_detached(sig, expected, sizeof(expected), client->server_pub) == 0;
 }
 
 void shs1_client_outcome(
@@ -254,20 +241,20 @@ bool shs1_verify_client_challenge(
         crypto_box_PUBLICKEYBYTES, server->app
       ) != 0) {
     return false;
-  } else {
-    // hmac_{K}(a_p)
-    memcpy(server->encryption_nonce, challenge, crypto_box_NONCEBYTES);
-    // a_p
-    memcpy(server->client_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
-    // (b_s * a_p)
-    if (crypto_scalarmult(server->shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
-      return false;
-    };
-    // hash(b_s * a_p)
-    crypto_hash_sha256(server->shared_hash, server->shared_secret, crypto_scalarmult_BYTES);
-
-    return true;
   }
+
+  // hmac_{K}(a_p)
+  memcpy(server->encryption_nonce, challenge, crypto_box_NONCEBYTES);
+  // a_p
+  memcpy(server->client_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
+  // (b_s * a_p)
+  if (crypto_scalarmult(server->shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
+    return false;
+  };
+  // hash(b_s * a_p)
+  crypto_hash_sha256(server->shared_hash, server->shared_secret, crypto_scalarmult_BYTES);
+
+  return true;
 }
 
 void shs1_create_server_challenge(
@@ -298,42 +285,32 @@ bool shs1_verify_client_auth(
   // write to server->box_sec is only temporary, this is overwritten later
   crypto_hash_sha256(server->box_sec, server->app, crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES);
 
-  unsigned char nonce[crypto_secretbox_NONCEBYTES] = {0};
-
   // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
-  if (crypto_secretbox_open_easy(server->client_hello, auth, SHS1_CLIENT_AUTH_BYTES, nonce, server->box_sec) != 0) {
+  if (crypto_secretbox_open_easy(server->client_hello, auth, SHS1_CLIENT_AUTH_BYTES, zero_nonce, server->box_sec) != 0) {
     return false;
-  } else {
-    memcpy(server->client_pub, server->client_hello + crypto_sign_BYTES, crypto_sign_PUBLICKEYBYTES);
-
-    // expected: K | B_p | hash(a_s * b_p)
-    if (crypto_sign_verify_detached(server->client_hello, server->app_copy, crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES, server->client_pub) != 0) {
-      return false;
-    } else {
-      unsigned char curve_client_pub[crypto_scalarmult_curve25519_BYTES];
-      if (crypto_sign_ed25519_pk_to_curve25519(curve_client_pub, server->client_pub) != 0) {
-        return false;
-      };
-
-      // b_s * A_p
-      if (crypto_scalarmult(server->client_lterm_shared, server->eph_sec, curve_client_pub) != 0) {
-        return false;
-      }
-      printf("%s", "eph_sec aka kx_sk: "); // correct
-      print_hexx(server->eph_sec, crypto_box_SECRETKEYBYTES);
-      printf("%s", "client_pub aka remote.publicKey: "); // correct
-      print_hexx(server->client_pub, crypto_sign_PUBLICKEYBYTES);
-      printf("%s", "curve_client_pub aka cur: ");
-      print_hexx(curve_client_pub, crypto_scalarmult_curve25519_BYTES);
-      print_hexx(server->client_lterm_shared, crypto_scalarmult_BYTES);
-      printf("%s\n", "");
-
-      // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
-      crypto_hash_sha256(server->box_sec, server->app, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
-
-      return true;
-    }
   }
+
+  memcpy(server->client_pub, server->client_hello + crypto_sign_BYTES, crypto_sign_PUBLICKEYBYTES);
+
+  // expected: K | B_p | hash(a_s * b_p)
+  if (crypto_sign_verify_detached(server->client_hello, server->app_copy, crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES, server->client_pub) != 0) {
+    return false;
+  }
+
+  unsigned char curve_client_pub[crypto_scalarmult_curve25519_BYTES];
+  if (crypto_sign_ed25519_pk_to_curve25519(curve_client_pub, server->client_pub) != 0) {
+    return false;
+  };
+
+  // b_s * A_p
+  if (crypto_scalarmult(server->client_lterm_shared, server->eph_sec, curve_client_pub) != 0) {
+    return false;
+  }
+
+  // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
+  crypto_hash_sha256(server->box_sec, server->app, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
+
+  return true;
 }
 
 void shs1_create_server_auth(
@@ -351,15 +328,8 @@ void shs1_create_server_auth(
   unsigned char sig[crypto_sign_BYTES];
   crypto_sign_detached(sig, NULL, to_sign, sizeof(to_sign), server->sec);
 
-  unsigned char nonce[crypto_secretbox_NONCEBYTES] = {0};
-
   // box_{hash(K | b_s * a_p | B_s * a_p | b_s * A_p)}(sign_{B_s}(K | H | hash(b_s * a_p)))
-  crypto_secretbox_easy(auth, sig, crypto_sign_BYTES, nonce, server->box_sec);
-
-  // print_hexx(server->shared_secret, crypto_scalarmult_BYTES);
-  // print_hexx(server->shared_hash, crypto_hash_sha256_BYTES);
-  // print_hexx(server->server_lterm_shared, crypto_scalarmult_BYTES);
-  print_hexx(server->client_lterm_shared, crypto_scalarmult_BYTES);
+  crypto_secretbox_easy(auth, sig, crypto_sign_BYTES, zero_nonce, server->box_sec);
 }
 
 void shs1_server_outcome(
@@ -382,12 +352,11 @@ void shs1_server_outcome(
   memcpy(outcome->decryption_nonce, server->app_hmac, crypto_box_NONCEBYTES);
 }
 
-// TODO remove all print statements
 // TODO change API to expose sizeof Client and Server, make init functions take a pointer to them, and remove free/zero
 // TODO change argument order in init_x to something more rememberable
+// TODO change server_auth to server_accept
 // TODO nonzero-as-failure returns should return bools instead
+
+// TODO put API into the readme
+
 // TODO add to readme: libsodium dependency and sodium_init()
-// TODO cleanup:
-// - convert if return else into if return
-// - use constant for zero nonce
-// - renaming: use a_Bob and b_Alice and change server_auth to server_accept
