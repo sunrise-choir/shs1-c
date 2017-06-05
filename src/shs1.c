@@ -3,17 +3,16 @@
 #include <string.h>
 #include <sodium.h>
 
-// TODO remove this
-void print_hex(void *mem, int size) {
+#define HELLO_BYTES crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES
+
+void print_hexx(void *mem, int size) {
   int i;
   unsigned char *p = (unsigned char *)mem;
   for (i=0;i<size;i++) {
-    printf("0x%02x ", p[i]);
+    printf("%02x ", p[i]);
   }
   printf("\n");
 }
-
-#define HELLO_BYTES crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES
 
 // The order of fields is relevant from `app` to `shared_hash`.
 struct SHS1_Client {
@@ -312,7 +311,7 @@ bool shs1_verify_client_auth(
       return false;
     } else {
       unsigned char curve_client_pub[crypto_scalarmult_curve25519_BYTES];
-      if (crypto_sign_ed25519_sk_to_curve25519(curve_client_pub, server->client_pub) != 0) {
+      if (crypto_sign_ed25519_pk_to_curve25519(curve_client_pub, server->client_pub) != 0) {
         return false;
       };
 
@@ -320,6 +319,14 @@ bool shs1_verify_client_auth(
       if (crypto_scalarmult(server->client_lterm_shared, server->eph_sec, curve_client_pub) != 0) {
         return false;
       }
+      printf("%s", "eph_sec aka kx_sk: "); // correct
+      print_hexx(server->eph_sec, crypto_box_SECRETKEYBYTES);
+      printf("%s", "client_pub aka remote.publicKey: "); // correct
+      print_hexx(server->client_pub, crypto_sign_PUBLICKEYBYTES);
+      printf("%s", "curve_client_pub aka cur: ");
+      print_hexx(curve_client_pub, crypto_scalarmult_curve25519_BYTES);
+      print_hexx(server->client_lterm_shared, crypto_scalarmult_BYTES);
+      printf("%s\n", "");
 
       // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
       crypto_hash_sha256(server->box_sec, server->app, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
@@ -348,6 +355,11 @@ void shs1_create_server_auth(
 
   // box_{hash(K | b_s * a_p | B_s * a_p | b_s * A_p)}(sign_{B_s}(K | H | hash(b_s * a_p)))
   crypto_secretbox_easy(auth, sig, crypto_sign_BYTES, nonce, server->box_sec);
+
+  // print_hexx(server->shared_secret, crypto_scalarmult_BYTES);
+  // print_hexx(server->shared_hash, crypto_hash_sha256_BYTES);
+  // print_hexx(server->server_lterm_shared, crypto_scalarmult_BYTES);
+  print_hexx(server->client_lterm_shared, crypto_scalarmult_BYTES);
 }
 
 void shs1_server_outcome(
@@ -370,8 +382,11 @@ void shs1_server_outcome(
   memcpy(outcome->decryption_nonce, server->app_hmac, crypto_box_NONCEBYTES);
 }
 
-
+// TODO remove all print statements
 // TODO change API to expose sizeof Client and Server, make init functions take a pointer to them, and remove free/zero
+// TODO change argument order in init_x to something more rememberable
+// TODO nonzero-as-failure returns should return bools instead
+// TODO add to readme: libsodium dependency and sodium_init()
 // TODO cleanup:
 // - convert if return else into if return
 // - use constant for zero nonce

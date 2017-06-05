@@ -15,10 +15,10 @@ OBJ = $(ODIR)/shs1.o $(ODIR)/test.o
 $(ODIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-all: $(OBJ)
+test: $(OBJ)
 	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o all
+	rm -f $(ODIR)/*.o test

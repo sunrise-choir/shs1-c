@@ -37,8 +37,6 @@ int main()
 
   assert(sodium_init() != -1);
 
-  printf("%ul\n", crypto_box_SECRETKEYBYTES);
-
   randombytes_buf(app, sizeof app);
   crypto_sign_keypair(client_pub, client_sec);
   crypto_box_keypair(client_eph_pub, client_eph_sec);
