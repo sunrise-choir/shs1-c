@@ -1,4 +1,4 @@
-#include "shs1.h"
+encryption_nonceencryption_nonce#include "shs1.h"
 
 #include <string.h>
 #include <sodium.h>
@@ -87,7 +87,7 @@ bool shs1_verify_server_challenge(
     return false;
   } else {
     // hmac_{K}(b_p)
-    memcpy(client->server_app_hmac, challenge, crypto_box_NONCEBYTES);
+    memcpy(client->encryption_nonce, challenge, crypto_box_NONCEBYTES);
     // b_p
     memcpy(client->server_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
     // (a_s * b_p)
@@ -190,7 +190,7 @@ void shs1_client_outcome(
   memcpy(tmp + crypto_hash_sha256_BYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
   crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
-  memcpy(outcome->encryption_nonce, client->server_app_hmac, crypto_box_NONCEBYTES);
+  memcpy(outcome->encryption_nonce, client->encryption_nonce, crypto_box_NONCEBYTES);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
   memcpy(tmp + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
