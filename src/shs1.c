@@ -173,10 +173,9 @@ void shs1_client_outcome(
   memcpy(tmp + crypto_hash_sha256_BYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
   crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
+
   // hmac_{K}(b_p)
-  unsigned char encryption_nonce[crypto_auth_BYTES]; // only use the first crypto_box_NONCEBYTES bytes
-  crypto_auth(encryption_nonce, client->server_eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
-  memcpy(outcome->encryption_nonce, encryption_nonce, crypto_box_NONCEBYTES);
+  crypto_auth(outcome->encryption_nonce, client->server_eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
   memcpy(tmp + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
@@ -342,9 +341,7 @@ void shs1_server_outcome(
   crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   // hmac_{K}(a_p)
-  unsigned char encryption_nonce[crypto_auth_BYTES]; // only use the first crypto_box_NONCEBYTES bytes
-  crypto_auth(encryption_nonce, server->client_eph_pub, crypto_box_PUBLICKEYBYTES, server->app);
-  memcpy(outcome->encryption_nonce, encryption_nonce, crypto_box_NONCEBYTES);
+  crypto_auth(outcome->encryption_nonce, server->client_eph_pub, crypto_box_PUBLICKEYBYTES, server->app);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
   memcpy(tmp + crypto_hash_sha256_BYTES, server->pub, crypto_sign_PUBLICKEYBYTES);
