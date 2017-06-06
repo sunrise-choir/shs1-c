@@ -12,7 +12,7 @@
 // The data resulting from a handshake: Keys and nonces suitable for encrypted
 // two-way communication with the peer via sodium secretboxes.
 typedef struct {
-	unsigned char encryption_key[crypto_secretbox_KEYBYTES];
+  unsigned char encryption_key[crypto_secretbox_KEYBYTES];
   unsigned char encryption_nonce[crypto_secretbox_NONCEBYTES];
   unsigned char decryption_key[crypto_secretbox_KEYBYTES];
   unsigned char decryption_nonce[crypto_secretbox_NONCEBYTES];

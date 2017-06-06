@@ -124,6 +124,7 @@ int shs1_create_client_auth(
   memcpy(client->hello, sig, sizeof(sig));
   memcpy(client->hello + crypto_sign_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
 
+  // secretbox_{hash(K | a_s * b_p | a_s * B_p)}(H)
   crypto_secretbox_easy(
     auth, client->hello, HELLO_BYTES,
     zero_nonce, box_sec
@@ -191,7 +192,7 @@ struct SHS1_Server {
   // TODO remove these and do some copying in verify_client_auth?
   unsigned char server_lterm_shared[crypto_scalarmult_BYTES]; // (B_s * a_p) only here to save copying later
   unsigned char client_lterm_shared[crypto_scalarmult_BYTES]; // (b_s * A_p) only here to save copying later
-  // end K | b_s * a_p | B_s * a_p
+  // end K | b_s * a_p | B_s * a_p | b_s * A_p
   // begin K | B_p | hash(a_s * b_p)
   unsigned char app_copy[crypto_auth_KEYBYTES]; // same as app, put here to save some copying later TODO suggest to change concatenation order in shs2 so this is not needed
   unsigned char pub[crypto_sign_PUBLICKEYBYTES]; // B_p
@@ -360,3 +361,5 @@ void shs1_server_outcome(
 // TODO put API into the readme
 
 // TODO add to readme: libsodium dependency and sodium_init()
+
+// TODO reuse storage in the Client and Server structs: It's not necessary to keep all data arund for the whole handshake
