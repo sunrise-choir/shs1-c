@@ -7,25 +7,19 @@
 
 static unsigned char zero_nonce[crypto_box_NONCEBYTES] = {0};
 
-// The order of fields is relevant from `app` to `shared_hash`.
 struct SHS1_Client {
-  // begin K | a_s * b_p | a_s * B_p | A_s * b_p
-  unsigned char app[crypto_auth_KEYBYTES]; // K
+  // inputs
+  unsigned const char *app; // K, length: crypto_auth_KEYBYTES
+  unsigned const char *pub; // A_p, length: crypto_sign_PUBLICKEYBYTES
+  unsigned const char *sec; // A_s, length: crypto_sign_SECRETKEYBYTES
+  unsigned const char *eph_pub; // a_p, length: crypto_box_PUBLICKEYBYTES
+  unsigned const char *eph_sec; //a_s, length: crypto_box_SECRETKEYBYTES
+  unsigned const char *server_pub; // B_p, length: crypto_sign_PUBLICKEYBYTES
+  // intermediate results
   unsigned char shared_secret[crypto_scalarmult_BYTES]; // (a_s * b_p)
   unsigned char server_lterm_shared[crypto_scalarmult_BYTES]; // (a_s * B_p)
-  unsigned char client_lterm_shared[crypto_scalarmult_BYTES]; // (A_s * b_p) only here to save copying later
-  // end K | a_s * b_p | a_s * B_p | A_s * b_p
-  // begin K | B_p | hash(a_s * b_p)
-  unsigned char app_copy[crypto_auth_KEYBYTES]; // same as app, put here to save some copying later TODO suggest to change concatenation order in shs2 so this is not needed
-  unsigned char server_pub[crypto_sign_PUBLICKEYBYTES]; // B_p
-  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
-  // end K | B_p | hash(a_s * b_p)
-  unsigned char pub[crypto_sign_PUBLICKEYBYTES]; // A_p
-  unsigned char sec[crypto_sign_SECRETKEYBYTES]; // A_s
-  unsigned char eph_pub[crypto_box_PUBLICKEYBYTES]; // a_p
-  unsigned char eph_sec[crypto_box_SECRETKEYBYTES]; // a_s
-  unsigned char app_hmac[crypto_auth_BYTES]; // hmac_{K}(a_p)
   unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
+  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
   unsigned char hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
 };
@@ -41,16 +35,12 @@ SHS1_Client *shs1_init_client(
 {
   SHS1_Client *client = malloc(sizeof(SHS1_Client));
 
-  memcpy(client->pub, pub, crypto_sign_PUBLICKEYBYTES);
-  memcpy(client->sec, sec, crypto_sign_SECRETKEYBYTES);
-  memcpy(client->server_pub, server_pub, crypto_sign_PUBLICKEYBYTES);
-  memcpy(client->app, app, crypto_auth_KEYBYTES);
-  memcpy(client->app_copy, app, crypto_auth_KEYBYTES);
-  memcpy(client->eph_pub, eph_pub, crypto_box_PUBLICKEYBYTES);
-  memcpy(client->eph_sec, eph_sec, crypto_box_SECRETKEYBYTES);
-
-  // hmac_{K}(a_p)
-  crypto_auth(client->app_hmac, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
+  client->app = app;
+  client->pub = pub;
+  client->sec = sec;
+  client->eph_pub = eph_pub;
+  client->eph_sec = eph_sec;
+  client->server_pub = server_pub;
 
   return client;
 }
@@ -61,7 +51,11 @@ void shs1_create_client_challenge(
   SHS1_Client *client
 )
 {
-  memcpy(challenge, client->app_hmac, crypto_auth_BYTES);
+  // hmac_{K}(a_p)
+  crypto_auth(challenge, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
+  // hmac_{K}(a_p) is also recomputed in `shs1_client_outcome`, it could be stored in the state instead.
+  // Recomputing saves memory and seems feasible since the handshake is network-bound rather than cpu-bound.
+
   memcpy(challenge + crypto_auth_BYTES, client->eph_pub, crypto_box_PUBLICKEYBYTES);
 }
 
@@ -79,6 +73,8 @@ bool shs1_verify_server_challenge(
 
   // b_p
   memcpy(client->server_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
+
+  // TODO move these to later when the computed values are actually needed
   // (a_s * b_p)
   if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
     return false;
@@ -105,14 +101,26 @@ int shs1_create_client_auth(
     return -2;
   };
 
+  // K | a_s * b_p | a_s * B_p
+  unsigned char tmp[crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES];
+  memcpy(tmp, client->app, crypto_auth_KEYBYTES);
+  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
+  memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
+
   // hash(K | a_s * b_p | a_s * B_p)
   unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
-  crypto_hash_sha256(box_sec, client->app, crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES);
+  crypto_hash_sha256(box_sec, tmp, sizeof(tmp));
+
+  // K | B_p | hash(a_s * b_p)
+  unsigned char tmp2[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
+  memcpy(tmp2, client->app, crypto_auth_KEYBYTES);
+  memcpy(tmp2 + crypto_auth_KEYBYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
+  memcpy(tmp2 + crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES, client->shared_hash, crypto_hash_sha256_BYTES);
 
   // sign_{A_s}(K | B_p | hash(a_s * b_p))
   unsigned char sig[crypto_sign_BYTES];
   crypto_sign_detached(
-    sig, NULL, client->app_copy,
+    sig, NULL, tmp2,
     crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES,
     client->sec
   );
@@ -141,12 +149,22 @@ bool shs1_verify_server_acc(
   };
 
   // (A_s * b_p)
-  if (crypto_scalarmult(client->client_lterm_shared, curve_sec, client->server_eph_pub) != 0) {
+  unsigned char client_lterm_shared[crypto_scalarmult_BYTES];
+  if (crypto_scalarmult(client_lterm_shared, curve_sec, client->server_eph_pub) != 0) {
+    return false;
+  };
+
+  // K | a_s * b_p | a_s * B_p | A_s * b_p
+  unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
+  memcpy(tmp, client->app, crypto_auth_KEYBYTES);
+  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
+  memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
+  if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES, curve_sec, client->server_eph_pub) != 0) {
     return false;
   };
 
   // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
-  crypto_hash_sha256(client->box_sec, client->app, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
+  crypto_hash_sha256(client->box_sec, tmp, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
 
   unsigned char sig[crypto_sign_BYTES];
   if (crypto_secretbox_open_easy(sig, acc, SHS1_SERVER_ACC_BYTES, zero_nonce, client->box_sec) != 0) {
@@ -181,7 +199,8 @@ void shs1_client_outcome(
   memcpy(tmp + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
   crypto_hash_sha256(outcome->decryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
-  memcpy(outcome->decryption_nonce, client->app_hmac, crypto_box_NONCEBYTES);
+  // hmac_{K}(a_p)
+  crypto_auth(outcome->decryption_nonce, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
 }
 
 struct SHS1_Server {
@@ -356,4 +375,8 @@ void shs1_server_outcome(
 
 // TODO add to readme: libsodium dependency and sodium_init()
 
-// TODO reuse storage in the Client and Server structs: It's not necessary to keep all data arund for the whole handshake
+// TODO reuse storage in the Server struct: It's not necessary to keep all data arund for the whole handshake
+
+// TODO add tests for non-successful handshakes
+
+// TODO check whether some keys are *only* used in curvified form
