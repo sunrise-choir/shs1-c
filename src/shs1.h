@@ -22,12 +22,12 @@ typedef struct {
 typedef struct SHS1_Client SHS1_Client;
 
 SHS1_Client *shs1_init_client(
+  const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *sec, // length crypto_sign_SECRETKEYBYTES
-  const unsigned char *server_pub, // length crypto_sign_PUBLICKEYBYTES
-  const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *eph_pub, // length crypto_box_PUBLICKEYBYTES
-  const unsigned char *eph_sec // length crypto_box_SECRETKEYBYTES
+  const unsigned char *eph_sec, // length crypto_box_SECRETKEYBYTES
+  const unsigned char *server_pub // length crypto_sign_PUBLICKEYBYTES
 );
 
 // Writes the client challenge into `challenge`.
@@ -79,9 +79,9 @@ void shs1_client_free(SHS1_Client *client);
 typedef struct SHS1_Server SHS1_Server;
 
 SHS1_Server *shs1_init_server(
+  const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *sec, // length crypto_sign_SECRETKEYBYTES
-  const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *eph_pub, // length crypto_box_PUBLICKEYBYTES
   const unsigned char *eph_sec // length crypto_box_SECRETKEYBYTES
 );

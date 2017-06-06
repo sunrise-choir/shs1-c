@@ -32,12 +32,12 @@ struct SHS1_Client {
 };
 
 SHS1_Client *shs1_init_client(
+  const unsigned char *app,
   const unsigned char *pub,
   const unsigned char *sec,
-  const unsigned char *server_pub,
-  const unsigned char *app,
   const unsigned char *eph_pub,
-  const unsigned char *eph_sec
+  const unsigned char *eph_sec,
+  const unsigned char *server_pub
 )
 {
   SHS1_Client *client = malloc(sizeof(SHS1_Client));
@@ -210,9 +210,9 @@ struct SHS1_Server {
 };
 
 SHS1_Server *shs1_init_server(
+  const unsigned char *app,
   const unsigned char *pub,
   const unsigned char *sec,
-  const unsigned char *app,
   const unsigned char *eph_pub,
   const unsigned char *eph_sec
 )
