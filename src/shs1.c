@@ -110,6 +110,7 @@ int shs1_create_client_auth(
   // hash(a_s * b_p)
   crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
 
+  // TODO use hello memory before it is used by hello itself?
   // K | B_p | hash(a_s * b_p)
   unsigned char tmp2[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
   memcpy(tmp2, client->app, crypto_auth_KEYBYTES);
@@ -290,54 +291,56 @@ bool shs1_verify_client_auth(
   SHS1_Server *server
 )
 {
-  // (b_s * a_p)
-  unsigned char shared_secret[crypto_scalarmult_BYTES];
-
-  // (b_s * a_p)
-  if (crypto_scalarmult(shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
-    return false;
-  };
-
-  // hash(b_s * a_p)
-  crypto_hash_sha256(server->shared_hash, shared_secret, crypto_scalarmult_BYTES);
-
-  unsigned char curve_sec[crypto_scalarmult_curve25519_BYTES];
-  if (crypto_sign_ed25519_sk_to_curve25519(curve_sec, server->sec) != 0) {
-    return false;
-  };
-
   // later stores K | b_s * a_p | B_s * a_p | b_s * A_p
-  // for now, stores K | b_s * a_p | B_s * a_p
+  // for now, stores K | b_s * a_p
   unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
   memcpy(tmp, server->app, crypto_auth_KEYBYTES); // K
-  memcpy(tmp + crypto_auth_KEYBYTES, shared_secret, crypto_scalarmult_BYTES); // b_s * a_p
-  if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, curve_sec, server->client_eph_pub) != 0) { // (B_s * a_p)
+  if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES, server->eph_sec, server->client_eph_pub) != 0) {// (b_s * a_p)
     return false;
   };
 
-  // hash(K | b_s * a_p | B_s * a_p) TODO check whether this can be put into the struct instead
-  unsigned char tmp2[crypto_hash_sha256_BYTES];
-  crypto_hash_sha256(tmp2, tmp, crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES);
+  // curvified secret key is not used after server->shared_hash is initialized, so it can use its memory
+  #define CURVE_SEC server->shared_hash
+  if (crypto_sign_ed25519_sk_to_curve25519(CURVE_SEC, server->sec) != 0) {
+    return false;
+  };
+
+  // append (B_s * a_p) to K | b_s * a_p | B_s * a_p
+  if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, CURVE_SEC, server->client_eph_pub) != 0) { // (B_s * a_p)
+    return false;
+  };
+  // last usage of CURVE_SEC, its memory (server->shared_hash) can be reused
+
+  // hash(K | b_s * a_p | B_s * a_p)
+  // TMP2 is not used after server->shared_hash is initialized, so it can use its memory
+  #define TMP2 server->shared_hash
+  crypto_hash_sha256(TMP2, tmp, crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES);
 
   // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
-  if (crypto_secretbox_open_easy(server->client_hello, auth, SHS1_CLIENT_AUTH_BYTES, zero_nonce, tmp2) != 0) {
+  if (crypto_secretbox_open_easy(server->client_hello, auth, SHS1_CLIENT_AUTH_BYTES, zero_nonce, TMP2) != 0) {
     return false;
   }
+  // last usage of TMP2, its memory (server->shared_hash) can be reused
 
   // A_p
   memcpy(server->client_pub, server->client_hello + crypto_sign_BYTES, crypto_sign_PUBLICKEYBYTES);
 
-  unsigned char curve_client_pub[crypto_scalarmult_curve25519_BYTES];
-  if (crypto_sign_ed25519_pk_to_curve25519(curve_client_pub, server->client_pub) != 0) {
+  // CURVE_CLIENT_PUB is not used after server->shared_hash is initialized, so it can use its memory
+  #define CURVE_CLIENT_PUB server->shared_hash
+  if (crypto_sign_ed25519_pk_to_curve25519(CURVE_CLIENT_PUB, server->client_pub) != 0) {
     return false;
   };
 
-  // append b_s * A_p to K | b_s * a_p | B_s * a_p
-  if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES, server->eph_sec, curve_client_pub) != 0) { // b_s * A_p
+  // append (b_s * A_p) to K | b_s * a_p | B_s * a_p
+  if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES, server->eph_sec, CURVE_CLIENT_PUB) != 0) { // b_s * A_p
     return false;
   }
+  // last usage of CURVE_CLIENT_PUB, its memory (server->shared_hash) can be reused
 
-  // K | B_p | hash(a_s * b_p) TODO check whether this can be put into the struct instead
+  // hash(b_s * a_p)
+  crypto_hash_sha256(server->shared_hash, tmp + crypto_auth_KEYBYTES, crypto_scalarmult_BYTES);
+
+  // K | B_p | hash(a_s * b_p)
   unsigned char expected[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
   memcpy(expected, server->app, crypto_auth_KEYBYTES);
   memcpy(expected + crypto_auth_KEYBYTES, server->pub, crypto_sign_PUBLICKEYBYTES);
@@ -348,8 +351,6 @@ bool shs1_verify_client_auth(
     return false;
   }
 
-  // TODO can this be computed in auth and accept and then reuse struct space instead of server->box_sec?
-  // or just compute it here but reuse struct space?
   // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
   crypto_hash_sha256(server->box_sec, tmp, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
 
@@ -361,7 +362,6 @@ void shs1_create_server_acc(
   SHS1_Server *server
 )
 {
-  // TODO reuse struct memory?
   // K | H | hash(b_s * a_p)
   unsigned char to_sign[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(to_sign, server->app, crypto_auth_KEYBYTES);
@@ -370,33 +370,37 @@ void shs1_create_server_acc(
   // memcpy(to_sign + crypto_auth_KEYBYTES, server->client_hello, HELLO_BYTES);
   // memcpy(to_sign + crypto_auth_KEYBYTES + HELLO_BYTES, server->shared_hash, crypto_hash_sha256_BYTES);
 
-  // TODO reuse struct memory?
+  // last usage of server->client_hello, the memory can be reused from now on
+  // last usage of server->shared_hash, the memory can be reused from now on
+
   // sign_{B_s}(K | H | hash(b_s * a_p))
-  unsigned char sig[crypto_sign_BYTES];
-  crypto_sign_detached(sig, NULL, to_sign, sizeof(to_sign), server->sec);
+  // reuses the storage of server->client_hello
+  #define SIG server->client_hello
+  crypto_sign_detached(SIG, NULL, to_sign, sizeof(to_sign), server->sec);
 
   // box_{hash(K | b_s * a_p | B_s * a_p | b_s * A_p)}(sign_{B_s}(K | H | hash(b_s * a_p)))
-  crypto_secretbox_easy(acc, sig, crypto_sign_BYTES, zero_nonce, server->box_sec);
+  crypto_secretbox_easy(acc, SIG, crypto_sign_BYTES, zero_nonce, server->box_sec);
 }
 
 void shs1_server_outcome(
   SHS1_Outcome *outcome,
-  const SHS1_Server *server
+  SHS1_Server *server
 )
 {
-  // TODO reuse struct memory for tmp?
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
-  unsigned char tmp[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
-  crypto_hash_sha256(tmp, server->box_sec, crypto_hash_sha256_BYTES);
-  memcpy(tmp + crypto_hash_sha256_BYTES, server->client_pub, crypto_sign_PUBLICKEYBYTES);
-  crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
+  // reuses the storage of server->client_hello
+  #define TMP_SERVER_OUTCOME server->client_hello
+  // unsigned char tmp[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
+  crypto_hash_sha256(TMP_SERVER_OUTCOME, server->box_sec, crypto_hash_sha256_BYTES);
+  memcpy(TMP_SERVER_OUTCOME + crypto_hash_sha256_BYTES, server->client_pub, crypto_sign_PUBLICKEYBYTES);
+  crypto_hash_sha256(outcome->encryption_key, TMP_SERVER_OUTCOME, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   // hmac_{K}(a_p)
   crypto_auth(outcome->encryption_nonce, server->client_eph_pub, crypto_box_PUBLICKEYBYTES, server->app);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
-  memcpy(tmp + crypto_hash_sha256_BYTES, server->pub, crypto_sign_PUBLICKEYBYTES);
-  crypto_hash_sha256(outcome->decryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
+  memcpy(TMP_SERVER_OUTCOME + crypto_hash_sha256_BYTES, server->pub, crypto_sign_PUBLICKEYBYTES);
+  crypto_hash_sha256(outcome->decryption_key, TMP_SERVER_OUTCOME, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   // hmac_{K}(b_p)
   crypto_auth(outcome->decryption_nonce, server->eph_pub, crypto_box_PUBLICKEYBYTES, server->app);

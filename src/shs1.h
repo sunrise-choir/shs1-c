@@ -125,7 +125,7 @@ void shs1_create_server_acc(
 //
 // Must have previously called `shs1_create_server_acc` on `server` to work
 // correctly.
-void shs1_server_outcome(SHS1_Outcome *outcome, const SHS1_Server *server);
+void shs1_server_outcome(SHS1_Outcome *outcome, SHS1_Server *server);
 
 // Zeros out all crypto data and frees `server`.
 void shs1_server_free(SHS1_Server *client);
