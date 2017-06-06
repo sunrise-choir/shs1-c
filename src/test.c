@@ -23,12 +23,12 @@ int main()
   unsigned char client_challenge[SHS1_CLIENT_CHALLENGE_BYTES];
   unsigned char client_auth[SHS1_CLIENT_AUTH_BYTES];
   unsigned char server_challenge[SHS1_SERVER_CHALLENGE_BYTES];
-  unsigned char server_auth[SHS1_SERVER_AUTH_BYTES];
+  unsigned char server_acc[SHS1_SERVER_ACC_BYTES];
 
   unsigned char expected_client_challenge[SHS1_CLIENT_CHALLENGE_BYTES] = {211,6,20,155,178,209,30,107,1,3,140,242,73,101,116,234,249,127,131,227,142,66,240,195,13,50,38,96,7,208,124,180,79,79,77,238,254,215,129,197,235,41,185,208,47,32,146,37,255,237,208,215,182,92,201,106,85,86,157,41,53,165,177,32};
   unsigned char expected_server_challenge[SHS1_SERVER_CHALLENGE_BYTES] = {44,140,79,227,23,153,202,203,81,40,114,59,56,167,63,166,201,9,50,152,0,255,226,147,22,43,84,99,107,198,198,219,166,12,63,218,235,136,61,99,232,142,165,147,88,93,79,177,23,148,129,57,179,24,192,174,90,62,40,83,51,9,97,82};
   unsigned char expected_client_auth[SHS1_CLIENT_AUTH_BYTES] = {80,34,24,195,46,211,235,66,91,89,65,98,137,26,86,197,32,4,153,142,160,18,56,180,12,171,127,38,44,53,74,64,55,188,22,25,161,25,7,243,200,196,145,249,207,211,88,178,0,206,173,234,188,20,251,240,199,169,94,180,212,32,150,226,138,44,141,235,33,152,91,215,31,126,48,48,220,239,97,225,103,79,190,56,227,103,142,195,124,10,21,76,66,11,194,11,220,15,163,66,138,232,228,12,130,172,4,137,52,159,64,98};
-  unsigned char expected_server_auth[SHS1_SERVER_AUTH_BYTES] = {72,114,92,105,109,48,17,14,25,150,242,50,148,70,49,25,222,254,255,124,194,144,84,114,190,148,252,189,159,132,157,173,92,14,247,198,87,232,141,83,84,79,226,43,194,95,14,8,138,233,96,40,126,153,205,36,95,203,200,202,221,118,126,99,47,216,209,219,3,133,240,216,166,182,182,226,215,116,177,66};
+  unsigned char expected_server_acc[SHS1_SERVER_ACC_BYTES] = {72,114,92,105,109,48,17,14,25,150,242,50,148,70,49,25,222,254,255,124,194,144,84,114,190,148,252,189,159,132,157,173,92,14,247,198,87,232,141,83,84,79,226,43,194,95,14,8,138,233,96,40,126,153,205,36,95,203,200,202,221,118,126,99,47,216,209,219,3,133,240,216,166,182,182,226,215,116,177,66};
 
   SHS1_Outcome client_outcome;
   SHS1_Outcome server_outcome;
@@ -62,10 +62,10 @@ int main()
 
   assert(shs1_verify_client_auth(client_auth, server));
 
-  shs1_create_server_auth(server_auth, server);
-  assert(memcmp(server_auth, expected_server_auth, SHS1_SERVER_AUTH_BYTES) == 0);
+  shs1_create_server_acc(server_acc, server);
+  assert(memcmp(server_acc, expected_server_acc, SHS1_SERVER_ACC_BYTES) == 0);
 
-  assert(shs1_verify_server_auth(server_auth, client));
+  assert(shs1_verify_server_acc(server_acc, client));
 
   shs1_client_outcome(&client_outcome, client);
   shs1_server_outcome(&server_outcome, server);

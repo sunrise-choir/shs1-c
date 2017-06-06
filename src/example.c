@@ -31,7 +31,7 @@ int main()
   unsigned char client_challenge[SHS1_CLIENT_CHALLENGE_BYTES];
   unsigned char client_auth[SHS1_CLIENT_AUTH_BYTES];
   unsigned char server_challenge[SHS1_SERVER_CHALLENGE_BYTES];
-  unsigned char server_auth[SHS1_SERVER_AUTH_BYTES];
+  unsigned char server_acc[SHS1_SERVER_ACC_BYTES];
 
   SHS1_Outcome client_outcome;
   SHS1_Outcome server_outcome;
@@ -70,12 +70,12 @@ int main()
 
   assert(shs1_verify_client_auth(client_auth, server));
 
-  shs1_create_server_auth(server_auth, server);
+  shs1_create_server_acc(server_acc, server);
   printf("%s", "server auth: ");
-  print_hex(server_auth, SHS1_SERVER_AUTH_BYTES);
+  print_hex(server_acc, SHS1_SERVER_ACC_BYTES);
   printf("%s\n", "");
 
-  assert(shs1_verify_server_auth(server_auth, client));
+  assert(shs1_verify_server_acc(server_acc, client));
 
   shs1_client_outcome(&client_outcome, client);
   shs1_server_outcome(&server_outcome, server);

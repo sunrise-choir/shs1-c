@@ -7,7 +7,7 @@
 #define SHS1_CLIENT_CHALLENGE_BYTES 64
 #define SHS1_SERVER_CHALLENGE_BYTES 64
 #define SHS1_CLIENT_AUTH_BYTES 112
-#define SHS1_SERVER_AUTH_BYTES 80
+#define SHS1_SERVER_ACC_BYTES 80
 
 // The data resulting from a handshake: Keys and nonces suitable for encrypted
 // two-way communication with the peer via sodium secretboxes.
@@ -61,14 +61,14 @@ int shs1_create_client_auth(
 //
 // Must have previously called `shs1_create_client_auth` on `client` to work
 // correctly.
-bool shs1_verify_server_auth(
-  const unsigned char *auth, //length SHS1_SERVER_AUTH_BYTES
+bool shs1_verify_server_acc(
+  const unsigned char *acc, //length SHS1_SERVER_ACC_BYTES
   SHS1_Client *client
 );
 
 // Copies the result of the handshake into `outcome`.
 //
-// Must have previously called `shs1_verify_server_auth` on `client` to work
+// Must have previously called `shs1_verify_server_acc` on `client` to work
 // correctly.
 void shs1_client_outcome(SHS1_Outcome *outcome, const SHS1_Client *client);
 
@@ -112,18 +112,18 @@ bool shs1_verify_client_auth(
   SHS1_Server *server
 );
 
-// Writes the server authentication into `auth`.
+// Writes the server authentication into `acc`.
 //
 // Must have previously called `shs1_verify_client_auth` on `server` to work
 // correctly.
-void shs1_create_server_auth(
-  unsigned char *auth, // length SHS1_SERVER_AUTH_BYTES
+void shs1_create_server_acc(
+  unsigned char *acc, // length SHS1_SERVER_ACC_BYTES
   SHS1_Server *server
 );
 
 // Copies the result of the handshake into `outcome`.
 //
-// Must have previously called `shs1_create_server_auth` on `server` to work
+// Must have previously called `shs1_create_server_acc` on `server` to work
 // correctly.
 void shs1_server_outcome(SHS1_Outcome *outcome, const SHS1_Server *server);
 

@@ -133,8 +133,8 @@ int shs1_create_client_auth(
   return 0;
 }
 
-bool shs1_verify_server_auth(
-  const unsigned char *auth,
+bool shs1_verify_server_acc(
+  const unsigned char *acc,
   SHS1_Client *client
 )
 {
@@ -152,7 +152,7 @@ bool shs1_verify_server_auth(
   crypto_hash_sha256(client->box_sec, client->app, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
 
   unsigned char sig[crypto_sign_BYTES];
-  if (crypto_secretbox_open_easy(sig, auth, SHS1_SERVER_AUTH_BYTES, zero_nonce, client->box_sec) != 0) {
+  if (crypto_secretbox_open_easy(sig, acc, SHS1_SERVER_ACC_BYTES, zero_nonce, client->box_sec) != 0) {
     return false;
   }
 
@@ -314,8 +314,8 @@ bool shs1_verify_client_auth(
   return true;
 }
 
-void shs1_create_server_auth(
-  unsigned char *auth,
+void shs1_create_server_acc(
+  unsigned char *acc,
   SHS1_Server *server
 )
 {
@@ -330,7 +330,7 @@ void shs1_create_server_auth(
   crypto_sign_detached(sig, NULL, to_sign, sizeof(to_sign), server->sec);
 
   // box_{hash(K | b_s * a_p | B_s * a_p | b_s * A_p)}(sign_{B_s}(K | H | hash(b_s * a_p)))
-  crypto_secretbox_easy(auth, sig, crypto_sign_BYTES, zero_nonce, server->box_sec);
+  crypto_secretbox_easy(acc, sig, crypto_sign_BYTES, zero_nonce, server->box_sec);
 }
 
 void shs1_server_outcome(
@@ -354,9 +354,6 @@ void shs1_server_outcome(
 }
 
 // TODO change API to expose sizeof Client and Server, make init functions take a pointer to them, and remove free/zero
-// TODO change argument order in init_x to something more rememberable
-// TODO change server_auth to server_accept
-// TODO nonzero-as-failure returns should return bools instead
 
 // TODO put API into the readme
 
