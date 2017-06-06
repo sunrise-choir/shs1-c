@@ -23,7 +23,6 @@ struct SHS1_Client {
   unsigned char hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
   unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
-  unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
 };
 
 SHS1_Client *shs1_init_client(
@@ -129,7 +128,6 @@ int shs1_create_client_auth(
   memcpy(client->hello, sig, sizeof(sig));
   memcpy(client->hello + crypto_sign_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
 
-  // TODO reuse struct memory?
   // hash(K | a_s * b_p | a_s * B_p)
   unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
   crypto_hash_sha256(box_sec, tmp, sizeof(tmp));
@@ -169,47 +167,52 @@ bool shs1_verify_server_acc(
   if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES, curve_sec, client->server_eph_pub) != 0) {
     return false;
   };
+  // last usage of client->shared_secret, the memory can be reused from now on
+  // last usage of client->server_lterm_shared, the memory can be reused from now on
 
   // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
-  crypto_hash_sha256(client->box_sec, tmp, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
-
-  unsigned char sig[crypto_sign_BYTES];
-  if (crypto_secretbox_open_easy(sig, acc, SHS1_SERVER_ACC_BYTES, zero_nonce, client->box_sec) != 0) {
-    return false;
-  }
+  // reuses the storage in client->shared_secret
+  #define BOX_SEC_STORAGE client->shared_secret
+  crypto_hash_sha256(BOX_SEC_STORAGE, tmp, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
 
   // K | H | hash(a_s * b_p)
   unsigned char expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(expected, client->app, crypto_auth_KEYBYTES);
-
   memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES + crypto_hash_sha256_BYTES);
   // the memcpy above is equivalent to:
   // memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES);
   // memcpy(expected + crypto_auth_KEYBYTES + HELLO_BYTES, client->shared_hash, crypto_hash_sha256_BYTES);
 
-  return crypto_sign_verify_detached(sig, expected, sizeof(expected), client->server_pub) == 0;
+  // last usage of client->hello, the memory can be reused from now on
+  // last usage of client->shared_hash, the memory can be reused from now on
+
+  // reuses the storage of client->hello
+  #define SIG_STORAGE (client->hello)
+  if (crypto_secretbox_open_easy(SIG_STORAGE, acc, SHS1_SERVER_ACC_BYTES, zero_nonce, BOX_SEC_STORAGE) != 0) {
+    return false;
+  }
+
+  return crypto_sign_verify_detached(SIG_STORAGE, expected, sizeof(expected), client->server_pub) == 0;
 }
 
 void shs1_client_outcome(
   SHS1_Outcome *outcome,
-  const SHS1_Client *client
+  SHS1_Client *client
 )
 {
-  // TODO reuse memory in the client struct rather than allocating `tmp` on the stack?
-
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
-  unsigned char tmp[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
-  crypto_hash_sha256(tmp, client->box_sec, crypto_hash_sha256_BYTES);
-  memcpy(tmp + crypto_hash_sha256_BYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
-  crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
-
+  // reuses the storage of client->hello
+  #define TMP_CLIENT_OUTCOME client->hello
+  crypto_hash_sha256(TMP_CLIENT_OUTCOME, BOX_SEC_STORAGE, crypto_hash_sha256_BYTES);
+  memcpy(TMP_CLIENT_OUTCOME + crypto_hash_sha256_BYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
+  crypto_hash_sha256(outcome->encryption_key, TMP_CLIENT_OUTCOME, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   // hmac_{K}(b_p)
   crypto_auth(outcome->encryption_nonce, client->server_eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
-  memcpy(tmp + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
-  crypto_hash_sha256(outcome->decryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
+  memcpy(TMP_CLIENT_OUTCOME + crypto_hash_sha256_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
+  crypto_hash_sha256(outcome->decryption_key, TMP_CLIENT_OUTCOME, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
   // hmac_{K}(a_p)
   crypto_auth(outcome->decryption_nonce, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
@@ -405,4 +408,4 @@ void shs1_server_outcome(
 
 // TODO add tests for non-successful handshakes
 
-// TODO check for all local char arrays whether they can reuse state struct memory
+// TODO check for all local char arrays in server functions whether they can reuse state struct memory

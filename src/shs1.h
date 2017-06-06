@@ -70,7 +70,7 @@ bool shs1_verify_server_acc(
 //
 // Must have previously called `shs1_verify_server_acc` on `client` to work
 // correctly.
-void shs1_client_outcome(SHS1_Outcome *outcome, const SHS1_Client *client);
+void shs1_client_outcome(SHS1_Outcome *outcome, SHS1_Client *client);
 
 // Zeros out all crypto data and frees `client`.
 void shs1_client_free(SHS1_Client *client);
