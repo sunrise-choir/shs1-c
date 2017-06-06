@@ -16,11 +16,13 @@ struct SHS1_Client {
   unsigned const char *eph_sec; //a_s, length: crypto_box_SECRETKEYBYTES
   unsigned const char *server_pub; // B_p, length: crypto_sign_PUBLICKEYBYTES
   // intermediate results
+  // significant field order: shared_secret must be followed by server_lterm_shared
   unsigned char shared_secret[crypto_scalarmult_BYTES]; // (a_s * b_p)
   unsigned char server_lterm_shared[crypto_scalarmult_BYTES]; // (a_s * B_p)
-  unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
-  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
+  // significant field order: hello must be followed by shared_hash
   unsigned char hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
+  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
+  unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | a_s * b_p | a_s * B_p | A_s * b_p)
 };
 
@@ -101,8 +103,10 @@ int shs1_create_client_auth(
   // K | a_s * b_p | a_s * B_p
   unsigned char tmp[crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES];
   memcpy(tmp, client->app, crypto_auth_KEYBYTES);
-  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
-  memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
+  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, 2* crypto_scalarmult_BYTES);
+  // the memcpy above is equivalent to:
+  // memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
+  // memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
 
   // hash(a_s * b_p)
   crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
@@ -158,8 +162,10 @@ bool shs1_verify_server_acc(
   // K | a_s * b_p | a_s * B_p | A_s * b_p
   unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
   memcpy(tmp, client->app, crypto_auth_KEYBYTES);
-  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
-  memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
+  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, 2* crypto_scalarmult_BYTES);
+  // the memcpy above is equivalent to:
+  // memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
+  // memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
   if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES, curve_sec, client->server_eph_pub) != 0) {
     return false;
   };
@@ -175,8 +181,11 @@ bool shs1_verify_server_acc(
   // K | H | hash(a_s * b_p)
   unsigned char expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(expected, client->app, crypto_auth_KEYBYTES);
-  memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES);
-  memcpy(expected + crypto_auth_KEYBYTES + HELLO_BYTES, client->shared_hash, crypto_hash_sha256_BYTES);
+
+  memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES + crypto_hash_sha256_BYTES);
+  // the memcpy above is equivalent to:
+  // memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES);
+  // memcpy(expected + crypto_auth_KEYBYTES + HELLO_BYTES, client->shared_hash, crypto_hash_sha256_BYTES);
 
   return crypto_sign_verify_detached(sig, expected, sizeof(expected), client->server_pub) == 0;
 }
@@ -213,11 +222,12 @@ struct SHS1_Server {
   unsigned const char *sec; // A_s, length: crypto_sign_SECRETKEYBYTES
   unsigned const char *eph_pub; // a_p, length: crypto_box_PUBLICKEYBYTES
   unsigned const char *eph_sec; //a_s, length: crypto_box_SECRETKEYBYTES
-  // intermediate results TODO change order to reduce memcpy calls?
+  // intermediate results
+  // significant field order: client_hello must be followed by shared_hash
+  unsigned char client_hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
+  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(b_s * a_p)
   unsigned char client_eph_pub[crypto_box_PUBLICKEYBYTES]; //a_p
   unsigned char shared_secret[crypto_scalarmult_BYTES]; // (b_s * a_p)
-  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(b_s * a_p)
-  unsigned char client_hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char client_pub[crypto_sign_PUBLICKEYBYTES]; // A_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
 };
@@ -350,8 +360,10 @@ void shs1_create_server_acc(
   // K | H | hash(b_s * a_p)
   unsigned char to_sign[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(to_sign, server->app, crypto_auth_KEYBYTES);
-  memcpy(to_sign + crypto_auth_KEYBYTES, server->client_hello, HELLO_BYTES);
-  memcpy(to_sign + crypto_auth_KEYBYTES + HELLO_BYTES, server->shared_hash, crypto_hash_sha256_BYTES);
+  memcpy(to_sign + crypto_auth_KEYBYTES, server->client_hello, HELLO_BYTES + crypto_hash_sha256_BYTES);
+  // the memcpy above is equivalent to:
+  // memcpy(to_sign + crypto_auth_KEYBYTES, server->client_hello, HELLO_BYTES);
+  // memcpy(to_sign + crypto_auth_KEYBYTES + HELLO_BYTES, server->shared_hash, crypto_hash_sha256_BYTES);
 
   // TODO reuse struct memory?
   // sign_{B_s}(K | H | hash(b_s * a_p))
@@ -392,7 +404,5 @@ void shs1_server_outcome(
 // TODO add to readme: libsodium dependency and sodium_init()
 
 // TODO add tests for non-successful handshakes
-
-// TODO merge memcopies of struct-adjacent fields into single memcpy calls
 
 // TODO check for all local char arrays whether they can reuse state struct memory
