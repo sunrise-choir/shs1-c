@@ -74,14 +74,6 @@ bool shs1_verify_server_challenge(
   // b_p
   memcpy(client->server_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
 
-  // TODO move these to later when the computed values are actually needed
-  // (a_s * b_p)
-  if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
-    return false;
-  };
-  // hash(a_s * b_p)
-  crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
-
   return true;
 }
 
@@ -91,6 +83,11 @@ int shs1_create_client_auth(
   SHS1_Client *client
 )
 {
+  // (a_s * b_p)
+  if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
+    return false;
+  };
+
   unsigned char curve_server_pub[crypto_scalarmult_curve25519_BYTES];
   if (crypto_sign_ed25519_pk_to_curve25519(curve_server_pub, client->server_pub) != 0) {
     return -1;
@@ -107,9 +104,8 @@ int shs1_create_client_auth(
   memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
   memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
 
-  // hash(K | a_s * b_p | a_s * B_p)
-  unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
-  crypto_hash_sha256(box_sec, tmp, sizeof(tmp));
+  // hash(a_s * b_p)
+  crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
 
   // K | B_p | hash(a_s * b_p)
   unsigned char tmp2[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
@@ -128,6 +124,11 @@ int shs1_create_client_auth(
   // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   memcpy(client->hello, sig, sizeof(sig));
   memcpy(client->hello + crypto_sign_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
+
+  // TODO reuse struct memory?
+  // hash(K | a_s * b_p | a_s * B_p)
+  unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
+  crypto_hash_sha256(box_sec, tmp, sizeof(tmp));
 
   // secretbox_{hash(K | a_s * b_p | a_s * B_p)}(H)
   crypto_secretbox_easy(
@@ -255,16 +256,6 @@ bool shs1_verify_client_challenge(
   // a_p
   memcpy(server->client_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
 
-  // TODO compute when needed, not this early
-
-  // (b_s * a_p)
-  if (crypto_scalarmult(server->shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
-    return false;
-  };
-
-  // hash(b_s * a_p)
-  crypto_hash_sha256(server->shared_hash, server->shared_secret, crypto_scalarmult_BYTES);
-
   return true;
 }
 
@@ -287,6 +278,14 @@ bool shs1_verify_client_auth(
   SHS1_Server *server
 )
 {
+  // (b_s * a_p)
+  if (crypto_scalarmult(server->shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
+    return false;
+  };
+
+  // hash(b_s * a_p)
+  crypto_hash_sha256(server->shared_hash, server->shared_secret, crypto_scalarmult_BYTES);
+
   unsigned char curve_sec[crypto_scalarmult_curve25519_BYTES];
   if (crypto_sign_ed25519_sk_to_curve25519(curve_sec, server->sec) != 0) {
     return false;
@@ -320,7 +319,6 @@ bool shs1_verify_client_auth(
 
   // append b_s * A_p to K | b_s * a_p | B_s * a_p
   if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES, server->eph_sec, curve_client_pub) != 0) { // b_s * A_p
-    printf("%s\n", "hi!");
     return false;
   }
 
@@ -393,12 +391,8 @@ void shs1_server_outcome(
 
 // TODO add to readme: libsodium dependency and sodium_init()
 
-// TODO reuse storage in the Server struct: It's not necessary to keep all data arund for the whole handshake
-
 // TODO add tests for non-successful handshakes
 
 // TODO merge memcopies of struct-adjacent fields into single memcpy calls
 
-// TODO check for all `tmp`s whether they can reuse state struct memory
-
-// TODO in Client, let eph_pub and eph_sec share the same memory for the pointer (first usage of eph_sec is after last usage of eph_pub). Remove eph_sec from init function and add it as argument of client_verify_challenge
+// TODO check for all local char arrays whether they can reuse state struct memory
