@@ -206,7 +206,6 @@ struct SHS1_Server {
   unsigned char client_hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char client_pub[crypto_sign_PUBLICKEYBYTES]; // A_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | b_s * a_p | B_s * a_p | b_s * A_p) , also temporarily stores hash(K | b_s * a_p | B_s * a_p)
-  unsigned char encryption_nonce[crypto_box_NONCEBYTES]; // first 24 bytes of hmac_{K}(a_p)
 };
 
 SHS1_Server *shs1_init_server(
@@ -244,8 +243,6 @@ bool shs1_verify_client_challenge(
     return false;
   }
 
-  // hmac_{K}(a_p)
-  memcpy(server->encryption_nonce, challenge, crypto_box_NONCEBYTES);
   // a_p
   memcpy(server->client_eph_pub, challenge + crypto_auth_BYTES, crypto_box_PUBLICKEYBYTES);
   // (b_s * a_p)
@@ -344,7 +341,10 @@ void shs1_server_outcome(
   memcpy(tmp + crypto_hash_sha256_BYTES, server->client_pub, crypto_sign_PUBLICKEYBYTES);
   crypto_hash_sha256(outcome->encryption_key, tmp, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
 
-  memcpy(outcome->encryption_nonce, server->encryption_nonce, crypto_box_NONCEBYTES);
+  // hmac_{K}(a_p)
+  unsigned char encryption_nonce[crypto_auth_BYTES]; // only use the first crypto_box_NONCEBYTES bytes
+  crypto_auth(encryption_nonce, server->client_eph_pub, crypto_box_PUBLICKEYBYTES, server->app);
+  memcpy(outcome->encryption_nonce, encryption_nonce, crypto_box_NONCEBYTES);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | A_p)
   memcpy(tmp + crypto_hash_sha256_BYTES, server->pub, crypto_sign_PUBLICKEYBYTES);
