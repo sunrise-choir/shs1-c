@@ -100,38 +100,39 @@ int shs1_create_client_auth(
   };
 
   // K | a_s * b_p | a_s * B_p
-  unsigned char tmp[crypto_auth_KEYBYTES + 2 * crypto_scalarmult_BYTES];
-  memcpy(tmp, client->app, crypto_auth_KEYBYTES);
-  memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, 2* crypto_scalarmult_BYTES);
+  #define FOO client->hello
+  memcpy(FOO, client->app, crypto_auth_KEYBYTES);
+  memcpy(FOO + crypto_auth_KEYBYTES, client->shared_secret, 2* crypto_scalarmult_BYTES);
   // the memcpy above is equivalent to:
-  // memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
-  // memcpy(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
+  // memcpy(FOO + crypto_auth_KEYBYTES, client->shared_secret, crypto_scalarmult_BYTES);
+  // memcpy(FOO + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
+
+  // hash(K | a_s * b_p | a_s * B_p)
+  unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
+  crypto_hash_sha256(box_sec, FOO, sizeof(FOO));
+  // last usage of FOO, memory can be reused now
 
   // hash(a_s * b_p)
   crypto_hash_sha256(client->shared_hash, client->shared_secret, crypto_scalarmult_BYTES);
 
-  // TODO use hello memory before it is used by hello itself?
   // K | B_p | hash(a_s * b_p)
-  unsigned char tmp2[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
-  memcpy(tmp2, client->app, crypto_auth_KEYBYTES);
-  memcpy(tmp2 + crypto_auth_KEYBYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
-  memcpy(tmp2 + crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES, client->shared_hash, crypto_hash_sha256_BYTES);
+  #define BAR client->hello
+  memcpy(BAR, client->app, crypto_auth_KEYBYTES);
+  memcpy(BAR + crypto_auth_KEYBYTES, client->server_pub, crypto_sign_PUBLICKEYBYTES);
+  memcpy(BAR + crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES, client->shared_hash, crypto_hash_sha256_BYTES);
 
   // sign_{A_s}(K | B_p | hash(a_s * b_p))
   unsigned char sig[crypto_sign_BYTES];
   crypto_sign_detached(
-    sig, NULL, tmp2,
+    sig, NULL, BAR,
     crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES,
     client->sec
   );
+  // last usage of BAR, memory can be reused now
 
   // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   memcpy(client->hello, sig, sizeof(sig));
   memcpy(client->hello + crypto_sign_BYTES, client->pub, crypto_sign_PUBLICKEYBYTES);
-
-  // hash(K | a_s * b_p | a_s * B_p)
-  unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
-  crypto_hash_sha256(box_sec, tmp, sizeof(tmp));
 
   // secretbox_{hash(K | a_s * b_p | a_s * B_p)}(H)
   crypto_secretbox_easy(
@@ -413,5 +414,3 @@ void shs1_server_outcome(
 // TODO add to readme: libsodium dependency and sodium_init()
 
 // TODO add tests for non-successful handshakes
-
-// TODO check for all local char arrays in server functions whether they can reuse state struct memory
