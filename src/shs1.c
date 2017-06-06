@@ -230,7 +230,6 @@ struct SHS1_Server {
   unsigned char client_hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(b_s * a_p)
   unsigned char client_eph_pub[crypto_box_PUBLICKEYBYTES]; //a_p
-  unsigned char shared_secret[crypto_scalarmult_BYTES]; // (b_s * a_p)
   unsigned char client_pub[crypto_sign_PUBLICKEYBYTES]; // A_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
 };
@@ -292,12 +291,15 @@ bool shs1_verify_client_auth(
 )
 {
   // (b_s * a_p)
-  if (crypto_scalarmult(server->shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
+  unsigned char shared_secret[crypto_scalarmult_BYTES];
+
+  // (b_s * a_p)
+  if (crypto_scalarmult(shared_secret, server->eph_sec, server->client_eph_pub) != 0) {
     return false;
   };
 
   // hash(b_s * a_p)
-  crypto_hash_sha256(server->shared_hash, server->shared_secret, crypto_scalarmult_BYTES);
+  crypto_hash_sha256(server->shared_hash, shared_secret, crypto_scalarmult_BYTES);
 
   unsigned char curve_sec[crypto_scalarmult_curve25519_BYTES];
   if (crypto_sign_ed25519_sk_to_curve25519(curve_sec, server->sec) != 0) {
@@ -308,7 +310,7 @@ bool shs1_verify_client_auth(
   // for now, stores K | b_s * a_p | B_s * a_p
   unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
   memcpy(tmp, server->app, crypto_auth_KEYBYTES); // K
-  memcpy(tmp + crypto_auth_KEYBYTES, server->shared_secret, crypto_scalarmult_BYTES); // b_s * a_p
+  memcpy(tmp + crypto_auth_KEYBYTES, shared_secret, crypto_scalarmult_BYTES); // b_s * a_p
   if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, curve_sec, server->client_eph_pub) != 0) { // (B_s * a_p)
     return false;
   };
