@@ -229,6 +229,11 @@ void shs1_client_outcome(
   crypto_auth(outcome->decryption_nonce, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
 }
 
+void shs1_client_clean(SHS1_Client *c)
+{
+  sodium_memzero(c, SHS1_CLIENT_SIZE);
+}
+
 typedef struct {
   // inputs
   unsigned const char *app; // K, length: crypto_auth_KEYBYTES
@@ -425,12 +430,13 @@ void shs1_server_outcome(
   crypto_auth(outcome->decryption_nonce, server->eph_pub, crypto_box_PUBLICKEYBYTES, server->app);
 }
 
-// TODO change API to expose sizeof Client and Server, make init functions take a pointer to them, and remove free/zero
+void shs1_server_clean(SHS1_Server *s)
+{
+  sodium_memzero(s, SHS1_Server_SIZE);
+}
 
 // TODO put API into the readme
 
 // TODO add to readme: libsodium dependency and sodium_init()
 
 // TODO add tests for non-successful handshakes
-
-// TODO add `clean_server` and `clean_client` to API which zero out secrets

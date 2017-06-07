@@ -78,6 +78,9 @@ bool shs1_verify_server_acc(
 // correctly.
 void shs1_client_outcome(SHS1_Outcome *outcome, SHS1_Client *client);
 
+// Zeros out all sensitive data in the client.
+void shs1_client_clean(SHS1_Client *client);
+
 // Carries state during the handshake process.
 typedef unsigned char SHS1_Server[SHS1_Server_SIZE];
 
@@ -131,4 +134,7 @@ void shs1_create_server_acc(
 // Must have previously called `shs1_create_server_acc` on `server` to work
 // correctly.
 void shs1_server_outcome(SHS1_Outcome *outcome, SHS1_Server *server);
+
+// Zeros out all sensitive data in the server.
+void shs1_server_clean(SHS1_Server *server);
 #endif

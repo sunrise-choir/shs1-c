@@ -106,4 +106,7 @@ int main()
 
   assert(memcmp(&(client_outcome.encryption_key), &(server_outcome.decryption_key), crypto_secretbox_KEYBYTES) == 0);
   assert(memcmp(&(client_outcome.encryption_nonce), &(server_outcome.decryption_nonce), crypto_secretbox_NONCEBYTES) == 0);
+
+  shs1_client_clean(client);
+  shs1_server_clean(server);
 }

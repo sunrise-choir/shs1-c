@@ -83,4 +83,7 @@ int main()
   assert(memcmp(&(server_outcome.encryption_nonce), expected_server_encryption_nonce, crypto_secretbox_NONCEBYTES) == 0);
   assert(memcmp(&(server_outcome.decryption_key), expected_server_decryption_key, crypto_secretbox_KEYBYTES) == 0);
   assert(memcmp(&(server_outcome.decryption_nonce), expected_server_decryption_nonce, crypto_secretbox_NONCEBYTES) == 0);
+
+  shs1_client_clean(client);
+  shs1_server_clean(server);
 }
