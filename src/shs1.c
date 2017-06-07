@@ -7,7 +7,7 @@
 
 static unsigned char zero_nonce[crypto_box_NONCEBYTES] = {0};
 
-struct SHS1_Client {
+typedef struct {
   // inputs
   unsigned const char *app; // K, length: crypto_auth_KEYBYTES
   unsigned const char *pub; // A_p, length: crypto_sign_PUBLICKEYBYTES
@@ -23,9 +23,10 @@ struct SHS1_Client {
   unsigned char hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
   unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
   unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
-};
+} SHS1_Client_Impl;
 
-SHS1_Client *shs1_init_client(
+void shs1_init_client(
+  SHS1_Client *c,
   const unsigned char *app,
   const unsigned char *pub,
   const unsigned char *sec,
@@ -34,7 +35,7 @@ SHS1_Client *shs1_init_client(
   const unsigned char *server_pub
 )
 {
-  SHS1_Client *client = malloc(sizeof(SHS1_Client));
+  SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
 
   client->app = app;
   client->pub = pub;
@@ -42,16 +43,16 @@ SHS1_Client *shs1_init_client(
   client->eph_pub = eph_pub;
   client->eph_sec = eph_sec;
   client->server_pub = server_pub;
-
-  return client;
 }
 
 // challenge <- hmac_{K}(a_p) | a_p
 void shs1_create_client_challenge(
   unsigned char *challenge,
-  SHS1_Client *client
+  SHS1_Client *c
 )
 {
+  SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
+
   // hmac_{K}(a_p)
   crypto_auth(challenge, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
   // hmac_{K}(a_p) is also recomputed in `shs1_client_outcome`, it could be stored in the state instead.
@@ -62,9 +63,11 @@ void shs1_create_client_challenge(
 
 bool shs1_verify_server_challenge(
   const unsigned char *challenge,
-  SHS1_Client *client
+  SHS1_Client *c
 )
 {
+  SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
+
   if (crypto_auth_verify(
         challenge, challenge + crypto_auth_BYTES,
         crypto_box_PUBLICKEYBYTES, client->app
@@ -81,9 +84,11 @@ bool shs1_verify_server_challenge(
 // auth <- secretbox_{hash(K | a_s * b_p | a_s * B_p)}(H)
 int shs1_create_client_auth(
   unsigned char *auth,
-  SHS1_Client *client
+  SHS1_Client *c
 )
 {
+  SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
+
   // (a_s * b_p)
   if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
     return false;
@@ -145,9 +150,11 @@ int shs1_create_client_auth(
 
 bool shs1_verify_server_acc(
   const unsigned char *acc,
-  SHS1_Client *client
+  SHS1_Client *c
 )
 {
+  SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
+
   unsigned char curve_sec[crypto_scalarmult_curve25519_BYTES];
   if (crypto_sign_ed25519_sk_to_curve25519(curve_sec, client->sec) != 0) {
     return false;
@@ -199,9 +206,11 @@ bool shs1_verify_server_acc(
 
 void shs1_client_outcome(
   SHS1_Outcome *outcome,
-  SHS1_Client *client
+  SHS1_Client *c
 )
 {
+  SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
+
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
   // reuses the storage of client->hello
   #define TMP_CLIENT_OUTCOME client->hello
@@ -220,7 +229,7 @@ void shs1_client_outcome(
   crypto_auth(outcome->decryption_nonce, client->eph_pub, crypto_box_PUBLICKEYBYTES, client->app);
 }
 
-struct SHS1_Server {
+typedef struct {
   // inputs
   unsigned const char *app; // K, length: crypto_auth_KEYBYTES
   unsigned const char *pub; // A_p, length: crypto_sign_PUBLICKEYBYTES
@@ -234,9 +243,10 @@ struct SHS1_Server {
   unsigned char client_eph_pub[crypto_box_PUBLICKEYBYTES]; //a_p
   unsigned char client_pub[crypto_sign_PUBLICKEYBYTES]; // A_p
   unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
-};
+} SHS1_Server_Impl;
 
-SHS1_Server *shs1_init_server(
+void shs1_init_server(
+  SHS1_Server *s,
   const unsigned char *app,
   const unsigned char *pub,
   const unsigned char *sec,
@@ -244,22 +254,22 @@ SHS1_Server *shs1_init_server(
   const unsigned char *eph_sec
 )
 {
-  SHS1_Server *server = malloc(sizeof(SHS1_Server));
+  SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
 
   server->app = app;
   server->pub = pub;
   server->sec = sec;
   server->eph_pub = eph_pub;
   server->eph_sec = eph_sec;
-
-  return server;
 }
 
 bool shs1_verify_client_challenge(
   const unsigned char *challenge,
-  SHS1_Server *server
+  SHS1_Server *s
 )
 {
+  SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
+
   if (crypto_auth_verify(
         challenge, challenge + crypto_auth_BYTES,
         crypto_box_PUBLICKEYBYTES, server->app
@@ -276,9 +286,11 @@ bool shs1_verify_client_challenge(
 // challenge <- hmac_{K}(b_p) | b_p
 void shs1_create_server_challenge(
   unsigned char *challenge,
-  SHS1_Server *server
+  SHS1_Server *s
 )
 {
+  SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
+
   // hmac_{K}(b_p)
   crypto_auth(challenge, server->eph_pub, crypto_box_PUBLICKEYBYTES, server->app);
   // hmac_{K}(b_p) is also recomputed in `shs1_client_outcome`, it could be stored in the state instead.
@@ -289,9 +301,11 @@ void shs1_create_server_challenge(
 
 bool shs1_verify_client_auth(
   const unsigned char *auth,
-  SHS1_Server *server
+  SHS1_Server *s
 )
 {
+  SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
+
   // later stores K | b_s * a_p | B_s * a_p | b_s * A_p
   // for now, stores K | b_s * a_p
   unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
@@ -360,9 +374,11 @@ bool shs1_verify_client_auth(
 
 void shs1_create_server_acc(
   unsigned char *acc,
-  SHS1_Server *server
+  SHS1_Server *s
 )
 {
+  SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
+
   // K | H | hash(b_s * a_p)
   unsigned char to_sign[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(to_sign, server->app, crypto_auth_KEYBYTES);
@@ -385,9 +401,11 @@ void shs1_create_server_acc(
 
 void shs1_server_outcome(
   SHS1_Outcome *outcome,
-  SHS1_Server *server
+  SHS1_Server *s
 )
 {
+  SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
+
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
   // reuses the storage of server->client_hello
   #define TMP_SERVER_OUTCOME server->client_hello
@@ -414,3 +432,5 @@ void shs1_server_outcome(
 // TODO add to readme: libsodium dependency and sodium_init()
 
 // TODO add tests for non-successful handshakes
+
+// TODO add `clean_server` and `clean_client` to API which zero out secrets

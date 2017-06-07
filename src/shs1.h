@@ -9,6 +9,10 @@
 #define SHS1_CLIENT_AUTH_BYTES 112
 #define SHS1_SERVER_ACC_BYTES 80
 
+#define SHS1_CLIENT_SIZE 6 * sizeof(void *) + 2 * crypto_scalarmult_BYTES + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES
+
+#define SHS1_Server_SIZE 5 * sizeof(void *) + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + 2* crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES + crypto_sign_PUBLICKEYBYTES
+
 // The data resulting from a handshake: Keys and nonces suitable for encrypted
 // two-way communication with the peer via sodium secretboxes.
 typedef struct {
@@ -19,9 +23,11 @@ typedef struct {
 } SHS1_Outcome;
 
 // Carries state during the handshake process.
-typedef struct SHS1_Client SHS1_Client;
+typedef unsigned char SHS1_Client[SHS1_CLIENT_SIZE];
 
-SHS1_Client *shs1_init_client(
+// Initializes the client state. The pointers must stay valid throughout the whole handshake.
+void shs1_init_client(
+  SHS1_Client *client,
   const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *sec, // length crypto_sign_SECRETKEYBYTES
@@ -72,13 +78,12 @@ bool shs1_verify_server_acc(
 // correctly.
 void shs1_client_outcome(SHS1_Outcome *outcome, SHS1_Client *client);
 
-// Zeros out all crypto data and frees `client`.
-void shs1_client_free(SHS1_Client *client);
-
 // Carries state during the handshake process.
-typedef struct SHS1_Server SHS1_Server;
+typedef unsigned char SHS1_Server[SHS1_Server_SIZE];
 
-SHS1_Server *shs1_init_server(
+// Initializes the server state. The pointers must stay valid throughout the whole handshake.
+void shs1_init_server(
+  SHS1_Server *server,
   const unsigned char *app, // length crypto_auth_KEYBYTES
   const unsigned char *pub, // length crypto_sign_PUBLICKEYBYTES
   const unsigned char *sec, // length crypto_sign_SECRETKEYBYTES
@@ -126,7 +131,4 @@ void shs1_create_server_acc(
 // Must have previously called `shs1_create_server_acc` on `server` to work
 // correctly.
 void shs1_server_outcome(SHS1_Outcome *outcome, SHS1_Server *server);
-
-// Zeros out all crypto data and frees `server`.
-void shs1_server_free(SHS1_Server *client);
 #endif

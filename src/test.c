@@ -44,8 +44,13 @@ int main()
 
   assert(sodium_init() != -1);
 
-  SHS1_Client *client = shs1_init_client(app, client_pub, client_sec, client_eph_pub, client_eph_sec, server_pub);
-  SHS1_Server *server = shs1_init_server(app, server_pub, server_sec, server_eph_pub, server_eph_sec);
+  SHS1_Client c;
+  SHS1_Client *client = &c;
+  SHS1_Server s;
+  SHS1_Server *server = &s;
+
+  shs1_init_client(client, app, client_pub, client_sec, client_eph_pub, client_eph_sec, server_pub);
+  shs1_init_server(server, app, server_pub, server_sec, server_eph_pub, server_eph_sec);
 
   shs1_create_client_challenge(client_challenge, client);
   assert(memcmp(client_challenge, expected_client_challenge, SHS1_CLIENT_CHALLENGE_BYTES) == 0);
