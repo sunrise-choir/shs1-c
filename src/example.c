@@ -7,7 +7,7 @@
 
 void print_hex(void *mem, int size) {
   int i;
-  unsigned char *p = (unsigned char *)mem;
+  uint8_t *p = (uint8_t *)mem;
   for (i=0;i<size;i++) {
     printf("%02x ", p[i]);
   }
@@ -16,22 +16,22 @@ void print_hex(void *mem, int size) {
 
 int main()
 {
-  unsigned char app[crypto_auth_KEYBYTES];
+  uint8_t app[crypto_auth_KEYBYTES];
 
-  unsigned char client_pub[crypto_sign_PUBLICKEYBYTES];
-  unsigned char client_sec[crypto_sign_SECRETKEYBYTES];
-  unsigned char client_eph_pub[crypto_box_PUBLICKEYBYTES];
-  unsigned char client_eph_sec[crypto_box_SECRETKEYBYTES];
+  uint8_t client_pub[crypto_sign_PUBLICKEYBYTES];
+  uint8_t client_sec[crypto_sign_SECRETKEYBYTES];
+  uint8_t client_eph_pub[crypto_box_PUBLICKEYBYTES];
+  uint8_t client_eph_sec[crypto_box_SECRETKEYBYTES];
 
-  unsigned char server_pub[crypto_sign_PUBLICKEYBYTES];
-  unsigned char server_sec[crypto_sign_SECRETKEYBYTES];
-  unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES];
-  unsigned char server_eph_sec[crypto_box_SECRETKEYBYTES];
+  uint8_t server_pub[crypto_sign_PUBLICKEYBYTES];
+  uint8_t server_sec[crypto_sign_SECRETKEYBYTES];
+  uint8_t server_eph_pub[crypto_box_PUBLICKEYBYTES];
+  uint8_t server_eph_sec[crypto_box_SECRETKEYBYTES];
 
-  unsigned char client_challenge[SHS1_CLIENT_CHALLENGE_BYTES];
-  unsigned char client_auth[SHS1_CLIENT_AUTH_BYTES];
-  unsigned char server_challenge[SHS1_SERVER_CHALLENGE_BYTES];
-  unsigned char server_acc[SHS1_SERVER_ACC_BYTES];
+  uint8_t client_challenge[SHS1_CLIENT_CHALLENGE_BYTES];
+  uint8_t client_auth[SHS1_CLIENT_AUTH_BYTES];
+  uint8_t server_challenge[SHS1_SERVER_CHALLENGE_BYTES];
+  uint8_t server_acc[SHS1_SERVER_ACC_BYTES];
 
   SHS1_Outcome client_outcome;
   SHS1_Outcome server_outcome;

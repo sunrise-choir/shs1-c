@@ -5,7 +5,7 @@
 
 #define HELLO_BYTES crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES
 
-static unsigned char zero_nonce[crypto_box_NONCEBYTES] = {0};
+static uint8_t zero_nonce[crypto_box_NONCEBYTES] = {0};
 
 typedef struct {
   // inputs
@@ -17,22 +17,22 @@ typedef struct {
   unsigned const char *server_pub; // B_p, length: crypto_sign_PUBLICKEYBYTES
   // intermediate results
   // significant field order: shared_secret must be followed by server_lterm_shared
-  unsigned char shared_secret[crypto_scalarmult_BYTES]; // (a_s * b_p)
-  unsigned char server_lterm_shared[crypto_scalarmult_BYTES]; // (a_s * B_p)
+  uint8_t shared_secret[crypto_scalarmult_BYTES]; // (a_s * b_p)
+  uint8_t server_lterm_shared[crypto_scalarmult_BYTES]; // (a_s * B_p)
   // significant field order: hello must be followed by shared_hash
-  unsigned char hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
-  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
-  unsigned char server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
+  uint8_t hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
+  uint8_t shared_hash[crypto_hash_sha256_BYTES]; // hash(a_s * b_p)
+  uint8_t server_eph_pub[crypto_box_PUBLICKEYBYTES]; //b_p
 } SHS1_Client_Impl;
 
 void shs1_init_client(
   SHS1_Client *c,
-  const unsigned char *app,
-  const unsigned char *pub,
-  const unsigned char *sec,
-  const unsigned char *eph_pub,
-  const unsigned char *eph_sec,
-  const unsigned char *server_pub
+  const uint8_t *app,
+  const uint8_t *pub,
+  const uint8_t *sec,
+  const uint8_t *eph_pub,
+  const uint8_t *eph_sec,
+  const uint8_t *server_pub
 )
 {
   SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
@@ -47,7 +47,7 @@ void shs1_init_client(
 
 // challenge <- hmac_{K}(a_p) | a_p
 void shs1_create_client_challenge(
-  unsigned char *challenge,
+  uint8_t *challenge,
   SHS1_Client *c
 )
 {
@@ -62,7 +62,7 @@ void shs1_create_client_challenge(
 }
 
 bool shs1_verify_server_challenge(
-  const unsigned char *challenge,
+  const uint8_t *challenge,
   SHS1_Client *c
 )
 {
@@ -83,7 +83,7 @@ bool shs1_verify_server_challenge(
 
 // auth <- secretbox_{hash(K | a_s * b_p | a_s * B_p)}(H)
 int shs1_create_client_auth(
-  unsigned char *auth,
+  uint8_t *auth,
   SHS1_Client *c
 )
 {
@@ -94,7 +94,7 @@ int shs1_create_client_auth(
     return false;
   };
 
-  unsigned char curve_server_pub[crypto_scalarmult_curve25519_BYTES];
+  uint8_t curve_server_pub[crypto_scalarmult_curve25519_BYTES];
   if (crypto_sign_ed25519_pk_to_curve25519(curve_server_pub, client->server_pub) != 0) {
     return -1;
   };
@@ -113,7 +113,7 @@ int shs1_create_client_auth(
   // memcpy(FOO + crypto_auth_KEYBYTES + crypto_scalarmult_BYTES, client->server_lterm_shared, crypto_scalarmult_BYTES);
 
   // hash(K | a_s * b_p | a_s * B_p)
-  unsigned char box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
+  uint8_t box_sec[crypto_secretbox_KEYBYTES]; // same as crypto_hash_sha256_BYTES
   crypto_hash_sha256(box_sec, FOO, sizeof(FOO));
   // last usage of FOO, memory can be reused now
 
@@ -127,7 +127,7 @@ int shs1_create_client_auth(
   memcpy(BAR + crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES, client->shared_hash, crypto_hash_sha256_BYTES);
 
   // sign_{A_s}(K | B_p | hash(a_s * b_p))
-  unsigned char sig[crypto_sign_BYTES];
+  uint8_t sig[crypto_sign_BYTES];
   crypto_sign_detached(
     sig, NULL, BAR,
     crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES,
@@ -149,25 +149,25 @@ int shs1_create_client_auth(
 }
 
 bool shs1_verify_server_acc(
-  const unsigned char *acc,
+  const uint8_t *acc,
   SHS1_Client *c
 )
 {
   SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
 
-  unsigned char curve_sec[crypto_scalarmult_curve25519_BYTES];
+  uint8_t curve_sec[crypto_scalarmult_curve25519_BYTES];
   if (crypto_sign_ed25519_sk_to_curve25519(curve_sec, client->sec) != 0) {
     return false;
   };
 
   // (A_s * b_p)
-  unsigned char client_lterm_shared[crypto_scalarmult_BYTES];
+  uint8_t client_lterm_shared[crypto_scalarmult_BYTES];
   if (crypto_scalarmult(client_lterm_shared, curve_sec, client->server_eph_pub) != 0) {
     return false;
   };
 
   // K | a_s * b_p | a_s * B_p | A_s * b_p
-  unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
+  uint8_t tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
   memcpy(tmp, client->app, crypto_auth_KEYBYTES);
   memcpy(tmp + crypto_auth_KEYBYTES, client->shared_secret, 2* crypto_scalarmult_BYTES);
   // the memcpy above is equivalent to:
@@ -185,7 +185,7 @@ bool shs1_verify_server_acc(
   crypto_hash_sha256(BOX_SEC_STORAGE, tmp, crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES);
 
   // K | H | hash(a_s * b_p)
-  unsigned char expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
+  uint8_t expected[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(expected, client->app, crypto_auth_KEYBYTES);
   memcpy(expected + crypto_auth_KEYBYTES, client->hello, HELLO_BYTES + crypto_hash_sha256_BYTES);
   // the memcpy above is equivalent to:
@@ -243,20 +243,20 @@ typedef struct {
   unsigned const char *eph_sec; //a_s, length: crypto_box_SECRETKEYBYTES
   // intermediate results
   // significant field order: client_hello must be followed by shared_hash
-  unsigned char client_hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
-  unsigned char shared_hash[crypto_hash_sha256_BYTES]; // hash(b_s * a_p)
-  unsigned char client_eph_pub[crypto_box_PUBLICKEYBYTES]; //a_p
-  unsigned char client_pub[crypto_sign_PUBLICKEYBYTES]; // A_p
-  unsigned char box_sec[crypto_hash_sha256_BYTES]; // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
+  uint8_t client_hello[HELLO_BYTES]; // H = sign_{A_s}(K | B_p | hash(a_s * b_p)) | A_p
+  uint8_t shared_hash[crypto_hash_sha256_BYTES]; // hash(b_s * a_p)
+  uint8_t client_eph_pub[crypto_box_PUBLICKEYBYTES]; //a_p
+  uint8_t client_pub[crypto_sign_PUBLICKEYBYTES]; // A_p
+  uint8_t box_sec[crypto_hash_sha256_BYTES]; // hash(K | b_s * a_p | B_s * a_p | b_s * A_p)
 } SHS1_Server_Impl;
 
 void shs1_init_server(
   SHS1_Server *s,
-  const unsigned char *app,
-  const unsigned char *pub,
-  const unsigned char *sec,
-  const unsigned char *eph_pub,
-  const unsigned char *eph_sec
+  const uint8_t *app,
+  const uint8_t *pub,
+  const uint8_t *sec,
+  const uint8_t *eph_pub,
+  const uint8_t *eph_sec
 )
 {
   SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
@@ -269,7 +269,7 @@ void shs1_init_server(
 }
 
 bool shs1_verify_client_challenge(
-  const unsigned char *challenge,
+  const uint8_t *challenge,
   SHS1_Server *s
 )
 {
@@ -290,7 +290,7 @@ bool shs1_verify_client_challenge(
 
 // challenge <- hmac_{K}(b_p) | b_p
 void shs1_create_server_challenge(
-  unsigned char *challenge,
+  uint8_t *challenge,
   SHS1_Server *s
 )
 {
@@ -305,7 +305,7 @@ void shs1_create_server_challenge(
 }
 
 bool shs1_verify_client_auth(
-  const unsigned char *auth,
+  const uint8_t *auth,
   SHS1_Server *s
 )
 {
@@ -313,7 +313,7 @@ bool shs1_verify_client_auth(
 
   // later stores K | b_s * a_p | B_s * a_p | b_s * A_p
   // for now, stores K | b_s * a_p
-  unsigned char tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
+  uint8_t tmp[crypto_auth_KEYBYTES + 3 * crypto_scalarmult_BYTES];
   memcpy(tmp, server->app, crypto_auth_KEYBYTES); // K
   if (crypto_scalarmult(tmp + crypto_auth_KEYBYTES, server->eph_sec, server->client_eph_pub) != 0) {// (b_s * a_p)
     return false;
@@ -361,7 +361,7 @@ bool shs1_verify_client_auth(
   crypto_hash_sha256(server->shared_hash, tmp + crypto_auth_KEYBYTES, crypto_scalarmult_BYTES);
 
   // K | B_p | hash(a_s * b_p)
-  unsigned char expected[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
+  uint8_t expected[crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES];
   memcpy(expected, server->app, crypto_auth_KEYBYTES);
   memcpy(expected + crypto_auth_KEYBYTES, server->pub, crypto_sign_PUBLICKEYBYTES);
   memcpy(expected + crypto_auth_KEYBYTES + crypto_sign_PUBLICKEYBYTES, server->shared_hash, crypto_hash_sha256_BYTES);
@@ -378,14 +378,14 @@ bool shs1_verify_client_auth(
 }
 
 void shs1_create_server_acc(
-  unsigned char *acc,
+  uint8_t *acc,
   SHS1_Server *s
 )
 {
   SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
 
   // K | H | hash(b_s * a_p)
-  unsigned char to_sign[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
+  uint8_t to_sign[crypto_auth_KEYBYTES + HELLO_BYTES + crypto_hash_sha256_BYTES];
   memcpy(to_sign, server->app, crypto_auth_KEYBYTES);
   memcpy(to_sign + crypto_auth_KEYBYTES, server->client_hello, HELLO_BYTES + crypto_hash_sha256_BYTES);
   // the memcpy above is equivalent to:
@@ -414,7 +414,7 @@ void shs1_server_outcome(
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
   // reuses the storage of server->client_hello
   #define TMP_SERVER_OUTCOME server->client_hello
-  // unsigned char tmp[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
+  // uint8_t tmp[crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES];
   crypto_hash_sha256(TMP_SERVER_OUTCOME, server->box_sec, crypto_hash_sha256_BYTES);
   memcpy(TMP_SERVER_OUTCOME + crypto_hash_sha256_BYTES, server->client_pub, crypto_sign_PUBLICKEYBYTES);
   crypto_hash_sha256(outcome->encryption_key, TMP_SERVER_OUTCOME, crypto_hash_sha256_BYTES + crypto_sign_PUBLICKEYBYTES);
