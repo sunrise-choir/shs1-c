@@ -432,7 +432,7 @@ void shs1_server_outcome(
 
 void shs1_server_clean(SHS1_Server *s)
 {
-  sodium_memzero(s, SHS1_Server_SIZE);
+  sodium_memzero(s, SHS1_SERVER_SIZE);
 }
 
 // TODO add tests for non-successful handshakes

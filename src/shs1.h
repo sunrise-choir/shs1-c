@@ -11,7 +11,7 @@
 
 #define SHS1_CLIENT_SIZE 6 * sizeof(void *) + 2 * crypto_scalarmult_BYTES + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES
 
-#define SHS1_Server_SIZE 5 * sizeof(void *) + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + 2* crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES + crypto_sign_PUBLICKEYBYTES
+#define SHS1_SERVER_SIZE 5 * sizeof(void *) + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + 2* crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES + crypto_sign_PUBLICKEYBYTES
 
 // The data resulting from a handshake: Keys and nonces suitable for encrypted
 // two-way communication with the peer via sodium secretboxes.
@@ -83,7 +83,7 @@ void shs1_client_outcome(SHS1_Outcome *outcome, SHS1_Client *client);
 void shs1_client_clean(SHS1_Client *client);
 
 // Carries state during the handshake process.
-typedef unsigned char SHS1_Server[SHS1_Server_SIZE];
+typedef unsigned char SHS1_Server[SHS1_SERVER_SIZE];
 
 // Initializes the server state. The pointers must stay valid throughout the whole handshake.
 void shs1_init_server(
