@@ -435,8 +435,4 @@ void shs1_server_clean(SHS1_Server *s)
   sodium_memzero(s, SHS1_Server_SIZE);
 }
 
-// TODO put API into the readme
-
-// TODO add to readme: libsodium dependency and sodium_init()
-
 // TODO add tests for non-successful handshakes
