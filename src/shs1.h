@@ -29,19 +29,19 @@ typedef uint8_t SHS1_Client[SHS1_CLIENT_SIZE];
 // Initializes the client state. The pointers must stay valid throughout the whole handshake.
 void shs1_init_client(
   SHS1_Client *client,
-  const uint8_t *app, // length crypto_auth_KEYBYTES
-  const uint8_t *pub, // length crypto_sign_PUBLICKEYBYTES
-  const uint8_t *sec, // length crypto_sign_SECRETKEYBYTES
-  const uint8_t *eph_pub, // length crypto_box_PUBLICKEYBYTES
-  const uint8_t *eph_sec, // length crypto_box_SECRETKEYBYTES
-  const uint8_t *server_pub // length crypto_sign_PUBLICKEYBYTES
+  const uint8_t app[crypto_auth_KEYBYTES],
+  const uint8_t pub[crypto_sign_PUBLICKEYBYTES],
+  const uint8_t sec[crypto_sign_SECRETKEYBYTES],
+  const uint8_t eph_pub[crypto_box_PUBLICKEYBYTES],
+  const uint8_t eph_sec[crypto_box_SECRETKEYBYTES],
+  const uint8_t server_pub[crypto_sign_PUBLICKEYBYTES]
 );
 
 // Writes the client challenge into `challenge`.
 //
 // `client` must have been freshly obtained via `shs1_init_client`.
 void shs1_create_client_challenge(
-  uint8_t *challenge, // length SHS1_CLIENT_CHALLENGE_BYTES
+  uint8_t challenge[SHS1_CLIENT_CHALLENGE_BYTES],
   SHS1_Client *client
 );
 
@@ -50,7 +50,7 @@ void shs1_create_client_challenge(
 // Must have previously called `shs1_create_client_challenge` on `client` to work
 // correctly.
 bool shs1_verify_server_challenge(
-  const uint8_t *challenge, // length SHS1_SERVER_CHALLENGE_BYTES
+  const uint8_t challenge[SHS1_SERVER_CHALLENGE_BYTES],
   SHS1_Client *client
 );
 
@@ -60,7 +60,7 @@ bool shs1_verify_server_challenge(
 // Must have previously called `shs1_verify_server_challenge` on `client` to
 // work correctly.
 int shs1_create_client_auth(
-  uint8_t *auth, // length SHS1_CLIENT_AUTH_BYTES
+  uint8_t auth[SHS1_CLIENT_AUTH_BYTES],
   SHS1_Client *client
 );
 
@@ -69,7 +69,7 @@ int shs1_create_client_auth(
 // Must have previously called `shs1_create_client_auth` on `client` to work
 // correctly.
 bool shs1_verify_server_acc(
-  const uint8_t *acc, //length SHS1_SERVER_ACC_BYTES
+  const uint8_t acc[SHS1_SERVER_ACC_BYTES],
   SHS1_Client *client
 );
 
@@ -89,18 +89,18 @@ typedef uint8_t SHS1_Server[SHS1_SERVER_SIZE];
 // Initializes the server state. The pointers must stay valid throughout the whole handshake.
 void shs1_init_server(
   SHS1_Server *server,
-  const uint8_t *app, // length crypto_auth_KEYBYTES
-  const uint8_t *pub, // length crypto_sign_PUBLICKEYBYTES
-  const uint8_t *sec, // length crypto_sign_SECRETKEYBYTES
-  const uint8_t *eph_pub, // length crypto_box_PUBLICKEYBYTES
-  const uint8_t *eph_sec // length crypto_box_SECRETKEYBYTES
+  const uint8_t app[crypto_auth_KEYBYTES],
+  const uint8_t pub[crypto_sign_PUBLICKEYBYTES],
+  const uint8_t sec[crypto_sign_SECRETKEYBYTES],
+  const uint8_t eph_pub[crypto_box_PUBLICKEYBYTES],
+  const uint8_t eph_sec[crypto_box_SECRETKEYBYTES]
 );
 
 // Returns true if the client challenge is valid.
 //
 // `server` must have been freshly obtained via `shs1_init_server`.
 bool shs1_verify_client_challenge(
-  const uint8_t *challenge, // length SHS1_CLIENT_CHALLENGE_BYTES
+  const uint8_t challenge[SHS1_CLIENT_CHALLENGE_BYTES],
   SHS1_Server *server
 );
 
@@ -109,7 +109,7 @@ bool shs1_verify_client_challenge(
 // Must have previously called `shs1_verify_client_challenge` on `server` to work
 // correctly.
 void shs1_create_server_challenge(
-  uint8_t *challenge, // length SHS1_SERVER_CHALLENGE_BYTES
+  uint8_t challenge[SHS1_SERVER_CHALLENGE_BYTES],
   SHS1_Server *server
 );
 
@@ -118,7 +118,7 @@ void shs1_create_server_challenge(
 // Must have previously called `shs1_create_server_challenge` on `server` to
 // work correctly.
 bool shs1_verify_client_auth(
-  const uint8_t *auth, //length SHS1_CLIENT_AUTH_BYTES
+  const uint8_t auth[SHS1_CLIENT_AUTH_BYTES],
   SHS1_Server *server
 );
 
@@ -127,7 +127,7 @@ bool shs1_verify_client_auth(
 // Must have previously called `shs1_verify_client_auth` on `server` to work
 // correctly.
 void shs1_create_server_acc(
-  uint8_t *acc, // length SHS1_SERVER_ACC_BYTES
+  uint8_t acc[SHS1_SERVER_ACC_BYTES],
   SHS1_Server *server
 );
 
