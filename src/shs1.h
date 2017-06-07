@@ -78,7 +78,8 @@ bool shs1_verify_server_acc(
 // correctly.
 void shs1_client_outcome(SHS1_Outcome *outcome, SHS1_Client *client);
 
-// Zeros out all sensitive data in the client.
+// Zeros out all sensitive data in the `SHS_Client`.
+// This does *not* clear the data pointed to by the `shs1_init_client` arguments.
 void shs1_client_clean(SHS1_Client *client);
 
 // Carries state during the handshake process.
@@ -135,6 +136,7 @@ void shs1_create_server_acc(
 // correctly.
 void shs1_server_outcome(SHS1_Outcome *outcome, SHS1_Server *server);
 
-// Zeros out all sensitive data in the server.
+// Zeros out all sensitive data in the `SHS_Server`.
+// This does *not* clear the data pointed to by the `shs1_init_server` arguments.
 void shs1_server_clean(SHS1_Server *server);
 #endif
