@@ -1,4 +1,4 @@
-#include "shs1.h"
+ACK#include "shs1.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -31,7 +31,7 @@ int main()
   uint8_t client_challenge[SHS1_CLIENT_CHALLENGE_BYTES];
   uint8_t client_auth[SHS1_CLIENT_AUTH_BYTES];
   uint8_t server_challenge[SHS1_SERVER_CHALLENGE_BYTES];
-  uint8_t server_acc[SHS1_SERVER_ACC_BYTES];
+  uint8_t server_ack[SHS1_SERVER_ACK_BYTES];
 
   SHS1_Outcome client_outcome;
   SHS1_Outcome server_outcome;
@@ -75,12 +75,12 @@ int main()
 
   assert(shs1_verify_client_auth(client_auth, server));
 
-  shs1_create_server_acc(server_acc, server);
+  shs1_create_server_ack(server_ack, server);
   printf("%s", "server auth: ");
-  print_hex(server_acc, SHS1_SERVER_ACC_BYTES);
+  print_hex(server_ack, SHS1_SERVER_ACC_BYTES);
   printf("%s\n", "");
 
-  assert(shs1_verify_server_acc(server_acc, client));
+  assert(shs1_verify_server_ack(server_ack, client));
 
   shs1_client_outcome(&client_outcome, client);
   shs1_server_outcome(&server_outcome, server);

@@ -148,8 +148,8 @@ int shs1_create_client_auth(
   return 0;
 }
 
-bool shs1_verify_server_acc(
-  const uint8_t *acc,
+bool shs1_verify_server_ack(
+  const uint8_t *ack,
   SHS1_Client *c
 )
 {
@@ -197,7 +197,7 @@ bool shs1_verify_server_acc(
 
   // reuses the storage of client->hello
   #define SIG_STORAGE (client->hello)
-  if (crypto_secretbox_open_easy(SIG_STORAGE, acc, SHS1_SERVER_ACC_BYTES, zero_nonce, BOX_SEC_STORAGE) != 0) {
+  if (crypto_secretbox_open_easy(SIG_STORAGE, ack, SHS1_SERVER_ACK_BYTES, zero_nonce, BOX_SEC_STORAGE) != 0) {
     return false;
   }
 
@@ -377,8 +377,8 @@ bool shs1_verify_client_auth(
   return true;
 }
 
-void shs1_create_server_acc(
-  uint8_t *acc,
+void shs1_create_server_ack(
+  uint8_t *ack,
   SHS1_Server *s
 )
 {
@@ -401,7 +401,7 @@ void shs1_create_server_acc(
   crypto_sign_detached(SIG, NULL, to_sign, sizeof(to_sign), server->sec);
 
   // box_{hash(K | b_s * a_p | B_s * a_p | b_s * A_p)}(sign_{B_s}(K | H | hash(b_s * a_p)))
-  crypto_secretbox_easy(acc, SIG, crypto_sign_BYTES, zero_nonce, server->box_sec);
+  crypto_secretbox_easy(ack, SIG, crypto_sign_BYTES, zero_nonce, server->box_sec);
 }
 
 void shs1_server_outcome(

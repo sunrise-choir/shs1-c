@@ -8,7 +8,7 @@
 #define SHS1_CLIENT_CHALLENGE_BYTES 64
 #define SHS1_SERVER_CHALLENGE_BYTES 64
 #define SHS1_CLIENT_AUTH_BYTES 112
-#define SHS1_SERVER_ACC_BYTES 80
+#define SHS1_SERVER_ACK_BYTES 80
 
 #define SHS1_CLIENT_SIZE 6 * sizeof(void *) + 2 * crypto_scalarmult_BYTES + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES
 
@@ -68,14 +68,14 @@ int shs1_create_client_auth(
 //
 // Must have previously called `shs1_create_client_auth` on `client` to work
 // correctly.
-bool shs1_verify_server_acc(
-  const uint8_t acc[SHS1_SERVER_ACC_BYTES],
+bool shs1_verify_server_ack(
+  const uint8_t ack[SHS1_SERVER_ACK_BYTES],
   SHS1_Client *client
 );
 
 // Copies the result of the handshake into `outcome`.
 //
-// Must have previously called `shs1_verify_server_acc` on `client` to work
+// Must have previously called `shs1_verify_server_ack` on `client` to work
 // correctly.
 void shs1_client_outcome(SHS1_Outcome *outcome, SHS1_Client *client);
 
@@ -122,18 +122,18 @@ bool shs1_verify_client_auth(
   SHS1_Server *server
 );
 
-// Writes the server authentication into `acc`.
+// Writes the server authentication into `ack`.
 //
 // Must have previously called `shs1_verify_client_auth` on `server` to work
 // correctly.
-void shs1_create_server_acc(
-  uint8_t acc[SHS1_SERVER_ACC_BYTES],
+void shs1_create_server_ack(
+  uint8_t ack[SHS1_SERVER_ACK_BYTES],
   SHS1_Server *server
 );
 
 // Copies the result of the handshake into `outcome`.
 //
-// Must have previously called `shs1_create_server_acc` on `server` to work
+// Must have previously called `shs1_create_server_ack` on `server` to work
 // correctly.
 void shs1_server_outcome(SHS1_Outcome *outcome, SHS1_Server *server);
 
