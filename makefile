@@ -15,7 +15,10 @@ OBJ = $(ODIR)/shs1.o $(ODIR)/test.o
 $(ODIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-test: $(OBJ)
+test: $(ODIR)/shs1.o $(ODIR)/test.o
+	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
+
+testClient: $(ODIR)/shs1.o $(ODIR)/test-client.o
 	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
 
 example: src/example.c src/shs1.c
@@ -24,4 +27,4 @@ example: src/example.c src/shs1.c
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o test example
+	rm -f $(ODIR)/*.o test example test-client
