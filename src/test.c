@@ -84,6 +84,9 @@ void test_success() {
   assert(memcmp(&(server_outcome.decryption_key), expected_server_decryption_key, crypto_secretbox_KEYBYTES) == 0);
   assert(memcmp(&(server_outcome.decryption_nonce), expected_server_decryption_nonce, crypto_secretbox_NONCEBYTES) == 0);
 
+  assert(memcmp(&(client_outcome.peer_longterm_pk), server_pub, crypto_sign_PUBLICKEYBYTES) == 0);
+  assert(memcmp(&(server_outcome.peer_longterm_pk), client_pub, crypto_sign_PUBLICKEYBYTES) == 0);
+
   shs1_client_clean(client);
   assert(memcmp(client, zeros, SHS1_CLIENT_SIZE) == 0);
 

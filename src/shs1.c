@@ -211,6 +211,8 @@ void shs1_client_outcome(
 {
   SHS1_Client_Impl *client = (SHS1_Client_Impl *)c;
 
+  memcpy(&(outcome->peer_longterm_pk), client->server_pub, crypto_sign_PUBLICKEYBYTES);
+
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
   // reuses the storage of client->hello
   #define TMP_CLIENT_OUTCOME client->hello
@@ -410,6 +412,8 @@ void shs1_server_outcome(
 )
 {
   SHS1_Server_Impl *server = (SHS1_Server_Impl *)s;
+
+  memcpy(&(outcome->peer_longterm_pk), &(server->client_pub), crypto_sign_PUBLICKEYBYTES);
 
   // hash(hash(hash(K | a_s * b_p | a_s * B_p | A_s * b_p)) | B_p)
   // reuses the storage of server->client_hello

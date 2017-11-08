@@ -30,12 +30,14 @@
 #define SHS1_SERVER_SIZE 5 * sizeof(void *) + crypto_sign_BYTES + crypto_sign_PUBLICKEYBYTES + 2* crypto_hash_sha256_BYTES + crypto_box_PUBLICKEYBYTES + crypto_sign_PUBLICKEYBYTES
 
 // The data resulting from a handshake: Keys and nonces suitable for encrypted
-// two-way communication with the peer via sodium secretboxes.
+// two-way communication with the peer via sodium secretboxes. Also contains the
+// longterm public key of the peer.
 typedef struct {
   uint8_t encryption_key[crypto_secretbox_KEYBYTES];
   uint8_t encryption_nonce[32]; // nonce only occupies the first crypto_secretbox_NONCEBYTES = 24 bytes
   uint8_t decryption_key[crypto_secretbox_KEYBYTES];
   uint8_t decryption_nonce[32]; // nonce only occupies the first crypto_secretbox_NONCEBYTES = 24 bytes
+  uint8_t peer_longterm_pk[crypto_sign_PUBLICKEYBYTES];
 } SHS1_Outcome;
 
 // Carries state during the handshake process.
