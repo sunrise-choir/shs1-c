@@ -64,23 +64,23 @@ uint8_t hextobin(const char * str, uint8_t * bytes, size_t blen)
 
 int main(int argc, char *argv[])
 {
-  uint8_t network_identifier[crypto_auth_KEYBYTES];
+  uint8_t network_identifier[SHS1_NETWORKIDENTIFIERBYTES];
   uint8_t server_longterm_sk[crypto_sign_SECRETKEYBYTES];
   uint8_t server_longterm_pk[crypto_sign_PUBLICKEYBYTES];
 
   uint8_t server_ephemeral_pk[crypto_box_PUBLICKEYBYTES];
   uint8_t server_ephemeral_sk[crypto_box_SECRETKEYBYTES];
 
-  uint8_t msg1[SHS1_CLIENT_CHALLENGE_BYTES];
-  uint8_t msg2[SHS1_SERVER_CHALLENGE_BYTES];
-  uint8_t msg3[SHS1_CLIENT_AUTH_BYTES];
+  uint8_t msg1[SHS1_MSG1_BYTES];
+  uint8_t msg2[SHS1_MSG2_BYTES];
+  uint8_t msg3[SHS1_MSG3_BYTES];
 
   SHS1_Outcome server_outcome;
 
   assert(argc == 4);
   assert(sodium_init() != -1);
 
-  hextobin(argv[1], network_identifier, crypto_auth_KEYBYTES);
+  hextobin(argv[1], network_identifier, SHS1_NETWORKIDENTIFIERBYTES);
   hextobin(argv[2], server_longterm_sk, crypto_sign_SECRETKEYBYTES);
   hextobin(argv[3], server_longterm_pk, crypto_sign_PUBLICKEYBYTES);
 
@@ -97,22 +97,22 @@ int main(int argc, char *argv[])
     server_ephemeral_sk
   );
 
-  fread(msg1, sizeof(uint8_t), SHS1_CLIENT_CHALLENGE_BYTES, stdin);
-  if (!shs1_verify_client_challenge(msg1, server)) {
+  fread(msg1, sizeof(uint8_t), SHS1_MSG1_BYTES, stdin);
+  if (!shs1_verify_msg1(msg1, server)) {
     exit(1);
   }
 
-  shs1_create_server_challenge(msg2, server);
-  fwrite(msg2, sizeof(uint8_t), SHS1_SERVER_CHALLENGE_BYTES, stdout);
+  shs1_create_msg2(msg2, server);
+  fwrite(msg2, sizeof(uint8_t), SHS1_MSG2_BYTES, stdout);
   fflush(stdout);
 
-  fread(msg3, sizeof(uint8_t), SHS1_CLIENT_AUTH_BYTES, stdin);
-  if (!shs1_verify_client_auth(msg3, server)) {
+  fread(msg3, sizeof(uint8_t), SHS1_MSG3_BYTES, stdin);
+  if (!shs1_verify_msg3(msg3, server)) {
     exit(3);
   }
 
   uint8_t all_outcome[192];
-  shs1_create_server_ack(all_outcome, server);
+  shs1_create_msg4(all_outcome, server);
   shs1_server_outcome(&server_outcome, server);
   memcpy(all_outcome + 80, &(server_outcome.encryption_key), 32);
   memcpy(all_outcome + 80 + 32, &(server_outcome.encryption_nonce), 24);

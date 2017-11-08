@@ -5,6 +5,21 @@
 #include <stdint.h>
 #include <sodium.h>
 
+// These #defines provide naming consistent with the js crypto implementation at https://github.com/AljoschaMeyer/shs1-crypto-js
+#define SHS1_NETWORKIDENTIFIERBYTES crypto_auth_KEYBYTES
+#define SHS1_MSG1_BYTES SHS1_CLIENT_CHALLENGE_BYTES
+#define SHS1_MSG2_BYTES SHS1_SERVER_CHALLENGE_BYTES
+#define SHS1_MSG3_BYTES SHS1_CLIENT_AUTH_BYTES
+#define SHS1_MSG4_BYTES SHS1_SERVER_ACK_BYTES
+#define shs1_create_msg1 shs1_create_client_challenge
+#define shs1_verify_msg1 shs1_verify_client_challenge
+#define shs1_create_msg2 shs1_create_server_challenge
+#define shs1_verify_msg2 shs1_verify_server_challenge
+#define shs1_create_msg3 shs1_create_client_auth
+#define shs1_verify_msg3 shs1_verify_client_auth
+#define shs1_create_msg4 shs1_create_server_ack
+#define shs1_verify_msg4 shs1_verify_server_ack
+
 #define SHS1_CLIENT_CHALLENGE_BYTES 64
 #define SHS1_SERVER_CHALLENGE_BYTES 64
 #define SHS1_CLIENT_AUTH_BYTES 112

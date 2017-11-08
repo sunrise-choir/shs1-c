@@ -64,7 +64,7 @@ uint8_t hextobin(const char * str, uint8_t * bytes, size_t blen)
 
 int main(int argc, char *argv[])
 {
-  uint8_t network_identifier[crypto_auth_KEYBYTES];
+  uint8_t network_identifier[SHS1_NETWORKIDENTIFIERBYTES];
   uint8_t server_longterm_pk[crypto_sign_PUBLICKEYBYTES];
 
   uint8_t client_longterm_pk[crypto_sign_PUBLICKEYBYTES];
@@ -72,17 +72,17 @@ int main(int argc, char *argv[])
   uint8_t client_ephemeral_pk[crypto_box_PUBLICKEYBYTES];
   uint8_t client_ephemeral_sk[crypto_box_SECRETKEYBYTES];
 
-  uint8_t msg1[SHS1_CLIENT_CHALLENGE_BYTES];
-  uint8_t msg2[SHS1_SERVER_CHALLENGE_BYTES];
-  uint8_t msg3[SHS1_CLIENT_AUTH_BYTES];
-  uint8_t msg4[SHS1_SERVER_ACK_BYTES];
+  uint8_t msg1[SHS1_MSG1_BYTES];
+  uint8_t msg2[SHS1_MSG2_BYTES];
+  uint8_t msg3[SHS1_MSG3_BYTES];
+  uint8_t msg4[SHS1_MSG4_BYTES];
 
   SHS1_Outcome client_outcome;
 
   assert(argc == 3);
   assert(sodium_init() != -1);
 
-  hextobin(argv[1], network_identifier, crypto_auth_KEYBYTES);
+  hextobin(argv[1], network_identifier, SHS1_NETWORKIDENTIFIERBYTES);
   hextobin(argv[2], server_longterm_pk, crypto_sign_PUBLICKEYBYTES);
 
   crypto_sign_keypair(client_longterm_pk, client_longterm_sk);
@@ -100,21 +100,21 @@ int main(int argc, char *argv[])
     server_longterm_pk
   );
 
-  shs1_create_client_challenge(msg1, client);
-  fwrite(msg1, sizeof(uint8_t), SHS1_CLIENT_CHALLENGE_BYTES, stdout);
+  shs1_create_msg1(msg1, client);
+  fwrite(msg1, sizeof(uint8_t), SHS1_MSG1_BYTES, stdout);
   fflush(stdout);
 
-  fread(msg2, sizeof(uint8_t), SHS1_SERVER_CHALLENGE_BYTES, stdin);
-  if (!shs1_verify_server_challenge(msg2, client)) {
+  fread(msg2, sizeof(uint8_t), SHS1_MSG2_BYTES, stdin);
+  if (!shs1_verify_msg2(msg2, client)) {
     exit(2);
   }
 
-  assert(shs1_create_client_auth(msg3, client) == 0);
-  fwrite(msg3, sizeof(uint8_t), SHS1_CLIENT_AUTH_BYTES, stdout);
+  assert(shs1_create_msg3(msg3, client) == 0);
+  fwrite(msg3, sizeof(uint8_t), SHS1_MSG3_BYTES, stdout);
   fflush(stdout);
 
-  fread(msg4, sizeof(uint8_t), SHS1_SERVER_ACK_BYTES, stdin);
-  if (!shs1_verify_server_ack(msg4, client)) {
+  fread(msg4, sizeof(uint8_t), SHS1_MSG4_BYTES, stdin);
+  if (!shs1_verify_msg4(msg4, client)) {
     exit(4);
   }
 
