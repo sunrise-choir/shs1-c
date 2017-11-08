@@ -21,10 +21,13 @@ test: $(ODIR)/shs1.o $(ODIR)/test.o
 testClient: $(ODIR)/shs1.o $(ODIR)/test-client.o
 	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
 
+testServer: $(ODIR)/shs1.o $(ODIR)/test-server.o
+	cc $(LDLIBS) -o $@ $^ $(CFLAGS) $(LIBS)
+
 example: src/example.c src/shs1.c
 	cc $(LDLIBS) -o example src/example.c src/shs1.c
 
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o test example test-client
+	rm -f $(ODIR)/*.o test example test-client test-server
