@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
   fwrite(msg1, sizeof(uint8_t), SHS1_CLIENT_CHALLENGE_BYTES, stdout);
   fflush(stdout);
 
-  fread(msg2, sizeof(uint8_t), SHS1_CLIENT_CHALLENGE_BYTES, stdin);
+  fread(msg2, sizeof(uint8_t), SHS1_SERVER_CHALLENGE_BYTES, stdin);
   if (!shs1_verify_server_challenge(msg2, client)) {
     exit(2);
   }
