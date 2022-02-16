@@ -91,7 +91,7 @@ int shs1_create_client_auth(
 
   // (a_s * b_p)
   if (crypto_scalarmult(client->shared_secret, client->eph_sec, client->server_eph_pub) != 0) {
-    return false;
+    return -3;
   };
 
   uint8_t curve_server_pub[crypto_scalarmult_curve25519_BYTES];
