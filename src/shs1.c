@@ -291,6 +291,7 @@ bool shs1_verify_client_challenge(
 }
 
 // challenge <- hmac_{K}(b_p) | b_p
+// This matches the original reference implementation, not the specification; see https://github.com/sunrise-choir/shs1-c/issues/4
 void shs1_create_server_challenge(
   uint8_t *challenge,
   SHS1_Server *s
